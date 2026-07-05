@@ -36,3 +36,21 @@ func MetaCacheControlNoPreview() template.HTML {
 func MetaCacheControlNoCache() template.HTML {
 	return `<meta name="turbo-cache-control" content="no-cache">`
 }
+
+// MetaViewTransition renders <meta name="view-transition" content="same-origin">.
+//
+// It opts the page into cross-document view transitions on browsers that
+// support the View Transition API; when Turbo Drive navigates between two
+// same-origin pages that both declare this meta tag, the browser animates
+// the swap. On unsupported browsers the tag has no effect and Drive falls
+// back to its regular render.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaViewTransition }}
+//
+// Turbo Handbook — View transitions:
+// https://turbo.hotwired.dev/handbook/drive#view-transitions
+func MetaViewTransition() template.HTML {
+	return `<meta name="view-transition" content="same-origin">`
+}

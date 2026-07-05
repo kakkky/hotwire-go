@@ -47,5 +47,6 @@ func TemplateFuncMap() template.FuncMap {
 		"turboMetaVisitControlReload":    templatefunc.MetaVisitControlReload,
 		"turboMetaCacheControlNoPreview": templatefunc.MetaCacheControlNoPreview,
 		"turboMetaCacheControlNoCache":   templatefunc.MetaCacheControlNoCache,
+		"turboMetaViewTransition":        templatefunc.MetaViewTransition,
 	}
 }
