@@ -51,5 +51,6 @@ func TemplateFuncMap() template.FuncMap {
 		"turboMetaRefreshMethodMorph":    templatefunc.MetaRefreshMethodMorph,
 		"turboMetaRefreshScrollPreserve": templatefunc.MetaRefreshScrollPreserve,
 		"turboMetaDisablePrefetch":       templatefunc.MetaDisablePrefetch,
+		"turboMetaRoot":                  templatefunc.MetaRoot,
 	}
 }

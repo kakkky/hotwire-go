@@ -1,6 +1,9 @@
 package templatefunc
 
-import "html/template"
+import (
+	"fmt"
+	"html/template"
+)
 
 // MetaCacheControlNoPreview renders <meta name="turbo-cache-control" content="no-preview">.
 //
@@ -107,4 +110,28 @@ func MetaRefreshScrollPreserve() template.HTML {
 // https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
 func MetaDisablePrefetch() template.HTML {
 	return `<meta name="turbo-prefetch" content="false">`
+}
+
+// MetaRoot renders <meta name="turbo-root" content="{path}">.
+//
+// It scopes Turbo Drive to a particular root path: links whose href starts
+// with the given path are intercepted by Turbo Drive, while links outside
+// that scope fall back to full browser navigation. Use this to adopt Turbo
+// in a subset of a larger application (for example, mount "/app" under a
+// legacy site that must keep normal navigation).
+//
+// The path is HTML-escaped before insertion; pass a plain path string
+// (for example, "/app") without pre-escaping it.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaRoot "/app" }}
+//
+// Turbo Handbook — Setting a Root Location:
+// https://turbo.hotwired.dev/handbook/drive#setting-a-root-location
+func MetaRoot(path string) template.HTML {
+	return template.HTML(fmt.Sprintf(
+		`<meta name="turbo-root" content="%s">`,
+		template.HTMLEscapeString(path),
+	))
 }
