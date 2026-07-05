@@ -92,3 +92,39 @@ func AttrSubmitsWith(text string) template.HTMLAttr {
 func MetaVisitControlReload() template.HTML {
 	return `<meta name="turbo-visit-control" content="reload">`
 }
+
+// AttrActionAdvance renders data-turbo-action="advance" on a link or a
+// <turbo-frame>.
+//
+// On a link, it forces Turbo Drive to record the visit as a new browser
+// history entry (the default for regular navigation). On a <turbo-frame>,
+// it promotes a frame navigation to a full page visit, so the URL bar and
+// history stack update to reflect the destination of the frame.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<turbo-frame id="msg" {{ turboAttrActionAdvance }}>...</turbo-frame>
+//
+// Turbo Reference — data-turbo-action:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrActionAdvance() template.HTMLAttr {
+	return `data-turbo-action="advance"`
+}
+
+// AttrActionReplace renders data-turbo-action="replace" on a link or a
+// <turbo-frame>.
+//
+// On a link, it tells Turbo Drive to replace the current history entry
+// instead of pushing a new one, so the back button skips over the visit.
+// On a <turbo-frame>, it also promotes a frame navigation to a page visit
+// but replaces the current history entry rather than adding to it.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/edit" {{ turboAttrActionReplace }}>Edit</a>
+//
+// Turbo Reference — data-turbo-action:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrActionReplace() template.HTMLAttr {
+	return `data-turbo-action="replace"`
+}
