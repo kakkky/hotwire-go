@@ -296,3 +296,25 @@ func AttrDisablePrefetch() template.HTMLAttr {
 func AttrPermanent() template.HTMLAttr {
 	return `data-turbo-permanent`
 }
+
+// AttrTemporary renders data-turbo-temporary on an element (a boolean
+// attribute with no value).
+//
+// Turbo Drive removes the element from the DOM before caching the page
+// snapshot, so it will not reappear when the user returns via a
+// restoration visit (browser back/forward). Use it for elements that are
+// only meaningful on the current visit — flash messages, one-shot alerts,
+// modals that should not resurrect on back navigation.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<div class="flash" {{ turboAttrTemporary }}>Saved!</div>
+//
+// Turbo Handbook — Preparing the Page to be Cached:
+// https://turbo.hotwired.dev/handbook/building#preparing-the-page-to-be-cached
+//
+// Turbo Reference — data-turbo-temporary:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrTemporary() template.HTMLAttr {
+	return `data-turbo-temporary`
+}
