@@ -29,3 +29,25 @@ func ScriptImport() template.HTML {
 		turboVersion,
 	))
 }
+
+// AttrConfirm renders data-turbo-confirm="{message}" on a link or form.
+//
+// Turbo shows a browser confirm dialog with the given message when the
+// element is activated; the request is only issued if the user accepts.
+// Applies to any element that initiates a Turbo request (forms and links
+// with data-turbo-method), so it works across Drive, Frames, and Streams.
+//
+// The message is HTML-escaped before insertion; pass a plain string.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/posts/1" {{ turboAttrMethodDelete }} {{ turboAttrConfirm "Are you sure?" }}>Delete</a>
+//
+// Turbo Reference — data-turbo-confirm:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrConfirm(message string) template.HTMLAttr {
+	return template.HTMLAttr(fmt.Sprintf(
+		`data-turbo-confirm="%s"`,
+		template.HTMLEscapeString(message),
+	))
+}

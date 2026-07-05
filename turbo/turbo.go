@@ -37,6 +37,7 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string) {
 func TemplateFuncMap() template.FuncMap {
 	return template.FuncMap{
 		"turboScriptImport":              templatefunc.ScriptImport,
+		"turboAttrConfirm":               templatefunc.AttrConfirm,
 		"turboMetaCacheControlNoPreview": templatefunc.MetaCacheControlNoPreview,
 		"turboMetaCacheControlNoCache":   templatefunc.MetaCacheControlNoCache,
 	}
