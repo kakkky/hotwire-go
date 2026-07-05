@@ -54,5 +54,7 @@ func TemplateFuncMap() template.FuncMap {
 		"turboMetaRoot":                  templatefunc.MetaRoot,
 		"turboAttrTrackReload":           templatefunc.AttrTrackReload,
 		"turboAttrTrackDynamic":          templatefunc.AttrTrackDynamic,
+		"turboAttrDisableTurbo":          templatefunc.AttrDisableTurbo,
+		"turboAttrEnableTurbo":           templatefunc.AttrEnableTurbo,
 	}
 }

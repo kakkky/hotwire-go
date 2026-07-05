@@ -71,7 +71,7 @@ func MetaViewTransition() template.HTML {
 //	{{ turboMetaRefreshMethodMorph }}
 //
 // Turbo Handbook — Smooth page refreshes with morphing:
-// https://turbo.hotwired.dev/handbook/page_refreshes
+// https://turbo.hotwired.dev/handbook/page_refreshes#morphing
 func MetaRefreshMethodMorph() template.HTML {
 	return `<meta name="turbo-refresh-method" content="morph">`
 }
@@ -88,7 +88,7 @@ func MetaRefreshMethodMorph() template.HTML {
 //	{{ turboMetaRefreshScrollPreserve }}
 //
 // Turbo Handbook — Smooth page refreshes with morphing:
-// https://turbo.hotwired.dev/handbook/page_refreshes
+// https://turbo.hotwired.dev/handbook/page_refreshes#scroll-preservation
 func MetaRefreshScrollPreserve() template.HTML {
 	return `<meta name="turbo-refresh-scroll" content="preserve">`
 }
@@ -179,4 +179,44 @@ func AttrTrackReload() template.HTMLAttr {
 // https://turbo.hotwired.dev/handbook/drive#removing-assets-when-they-change
 func AttrTrackDynamic() template.HTMLAttr {
 	return `data-turbo-track="dynamic"`
+}
+
+// AttrDisableTurbo renders data-turbo="false" on a link, form, or any
+// container element.
+//
+// Turbo Drive stops intercepting the element and its descendants: link
+// clicks perform full browser navigation and form submissions issue a
+// normal submit. Use this for elements incompatible with Turbo's fetch and
+// swap model (external links, downloads, third-party embedded forms, etc.).
+//
+// The attribute is inherited by descendants, so applying it to a container
+// disables Turbo for everything inside. Use AttrEnableTurbo on a descendant
+// to opt back in for a specific subtree.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="https://external.example.com" {{ turboAttrDisableTurbo }}>External</a>
+//
+// Turbo Reference — data-turbo:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrDisableTurbo() template.HTMLAttr {
+	return `data-turbo="false"`
+}
+
+// AttrEnableTurbo renders data-turbo="true" on a link, form, or container.
+//
+// It re-enables Turbo on a subtree that was disabled by an ancestor's
+// data-turbo="false". Only useful in combination with AttrDisableTurbo on
+// an ancestor.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<div {{ turboAttrDisableTurbo }}>
+//	  <a href="/inside" {{ turboAttrEnableTurbo }}>Still Turbo</a>
+//	</div>
+//
+// Turbo Reference — data-turbo:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrEnableTurbo() template.HTMLAttr {
+	return `data-turbo="true"`
 }
