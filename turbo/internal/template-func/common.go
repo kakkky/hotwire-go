@@ -128,3 +128,56 @@ func AttrActionAdvance() template.HTMLAttr {
 func AttrActionReplace() template.HTMLAttr {
 	return `data-turbo-action="replace"`
 }
+
+// AttrMethodDelete renders data-turbo-method="delete" on a link.
+//
+// When the link is activated, Turbo issues a DELETE request instead of the
+// default GET. This lets you express destructive actions as plain links
+// without wrapping them in a form. Pair with AttrConfirm to guard against
+// accidental clicks. Works for links in Drive and inside Frames.
+//
+// Non-GET requests are ideally triggered by forms; use this only where a
+// form would be awkward (compact icon lists, table row actions, etc.).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/posts/1" {{ turboAttrMethodDelete }} {{ turboAttrConfirm "Are you sure?" }}>Delete</a>
+//
+// Turbo Reference — data-turbo-method:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrMethodDelete() template.HTMLAttr {
+	return `data-turbo-method="delete"`
+}
+
+// AttrMethodPatch renders data-turbo-method="patch" on a link.
+//
+// When the link is activated, Turbo issues a PATCH request instead of the
+// default GET. Useful for "partial update" actions rendered as compact
+// links (approve/reject buttons, toggles, etc.) where a full form would be
+// overkill. Works for links in Drive and inside Frames.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/posts/1/approve" {{ turboAttrMethodPatch }}>Approve</a>
+//
+// Turbo Reference — data-turbo-method:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrMethodPatch() template.HTMLAttr {
+	return `data-turbo-method="patch"`
+}
+
+// AttrMethodPut renders data-turbo-method="put" on a link.
+//
+// When the link is activated, Turbo issues a PUT request instead of the
+// default GET. Useful for "full replacement" actions expressed as links.
+// Works for links in Drive and inside Frames.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/posts/1" {{ turboAttrMethodPut }}>Replace</a>
+//
+// Turbo Reference — data-turbo-method:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrMethodPut() template.HTMLAttr {
+	return `data-turbo-method="put"`
+}
