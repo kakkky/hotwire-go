@@ -318,3 +318,27 @@ func AttrPermanent() template.HTMLAttr {
 func AttrTemporary() template.HTMLAttr {
 	return `data-turbo-temporary`
 }
+
+// AttrDisableEval renders data-turbo-eval="false" on a <script> element.
+//
+// Turbo Drive re-evaluates inline <body> scripts on every visit; annotating
+// a <script> with this attribute skips that re-evaluation, so the script
+// only runs on the initial browser page load. Use it for scripts whose
+// side effects should not run again after Turbo navigations — third-party
+// tracking snippets, one-shot bootstrappers, etc.
+//
+// This does not affect the browser's initial evaluation on first page
+// load, only Turbo's subsequent re-evaluations during visits.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<script {{ turboAttrDisableEval }}>oneShotBootstrap()</script>
+//
+// Turbo Handbook — Working with Script Elements:
+// https://turbo.hotwired.dev/handbook/building#working-with-script-elements
+//
+// Turbo Reference — data-turbo-eval:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrDisableEval() template.HTMLAttr {
+	return `data-turbo-eval="false"`
+}
