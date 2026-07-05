@@ -57,5 +57,6 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrDisableTurbo":          templatefunc.AttrDisableTurbo,
 		"turboAttrEnableTurbo":           templatefunc.AttrEnableTurbo,
 		"turboAttrPreload":               templatefunc.AttrPreload,
+		"turboAttrDisablePrefetch":       templatefunc.AttrDisablePrefetch,
 	}
 }

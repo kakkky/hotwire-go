@@ -95,12 +95,18 @@ func MetaRefreshScrollPreserve() template.HTML {
 
 // MetaDisablePrefetch renders <meta name="turbo-prefetch" content="false">.
 //
-// It disables Turbo Drive's default behavior of prefetching link targets
-// when the user hovers over a link. Use this on pages where prefetch would
-// waste bandwidth (many links, mobile-heavy audiences) or trigger unwanted
-// side effects on the server (analytics counted per request, non-idempotent
-// GET endpoints, etc.). Individual links can also be excluded with
-// AttrDisablePrefetch.
+// Turbo Drive prefetches link targets on hover by default; this meta tag
+// disables that behavior for the entire page. Use it when a page overall
+// should not prefetch — many links, mobile-heavy audiences, or server
+// endpoints with side effects (per-request analytics, non-idempotent GETs).
+//
+// Choose between this and AttrDisablePrefetch based on scope:
+//
+//   - MetaDisablePrefetch: turn prefetch off for the whole page.
+//   - AttrDisablePrefetch: leave prefetch on globally, but exclude a few
+//     specific links.
+//
+// The two are typically not combined on the same page.
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
@@ -238,4 +244,28 @@ func AttrEnableTurbo() template.HTMLAttr {
 // https://turbo.hotwired.dev/handbook/drive#preload-links-into-the-cache
 func AttrPreload() template.HTMLAttr {
 	return `data-turbo-preload`
+}
+
+// AttrDisablePrefetch renders data-turbo-prefetch="false" on a specific link.
+//
+// Turbo Drive prefetches link targets on hover by default; this attribute
+// disables that behavior for the single link it is applied to. Use it to
+// exclude expensive or side-effect-triggering endpoints (heavy report
+// pages, per-request analytics, non-idempotent GETs) while leaving the
+// rest of the page's links prefetched normally.
+//
+// Choose between this and MetaDisablePrefetch based on scope:
+//
+//   - AttrDisablePrefetch: leave prefetch on globally, but exclude a few
+//     specific links.
+//   - MetaDisablePrefetch: turn prefetch off for the whole page.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/report/heavy" {{ turboAttrDisablePrefetch }}>Heavy Report</a>
+//
+// Turbo Handbook — Prefetching Links on Hover:
+// https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
+func AttrDisablePrefetch() template.HTMLAttr {
+	return `data-turbo-prefetch="false"`
 }
