@@ -89,3 +89,22 @@ func MetaRefreshMethodMorph() template.HTML {
 func MetaRefreshScrollPreserve() template.HTML {
 	return `<meta name="turbo-refresh-scroll" content="preserve">`
 }
+
+// MetaDisablePrefetch renders <meta name="turbo-prefetch" content="false">.
+//
+// It disables Turbo Drive's default behavior of prefetching link targets
+// when the user hovers over a link. Use this on pages where prefetch would
+// waste bandwidth (many links, mobile-heavy audiences) or trigger unwanted
+// side effects on the server (analytics counted per request, non-idempotent
+// GET endpoints, etc.). Individual links can also be excluded with
+// AttrDisablePrefetch.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaDisablePrefetch }}
+//
+// Turbo Handbook — Prefetching Links on Hover:
+// https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
+func MetaDisablePrefetch() template.HTML {
+	return `<meta name="turbo-prefetch" content="false">`
+}
