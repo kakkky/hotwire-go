@@ -72,3 +72,20 @@ func MetaViewTransition() template.HTML {
 func MetaRefreshMethodMorph() template.HTML {
 	return `<meta name="turbo-refresh-method" content="morph">`
 }
+
+// MetaRefreshScrollPreserve renders <meta name="turbo-refresh-scroll" content="preserve">.
+//
+// On a same-URL refresh, Turbo Drive keeps the current scroll position
+// instead of resetting to the top. Naturally pairs with
+// MetaRefreshMethodMorph so a morphed refresh does not visibly jump. The
+// default without this meta is "reset" (scroll to top).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaRefreshScrollPreserve }}
+//
+// Turbo Handbook — Smooth page refreshes with morphing:
+// https://turbo.hotwired.dev/handbook/page_refreshes
+func MetaRefreshScrollPreserve() template.HTML {
+	return `<meta name="turbo-refresh-scroll" content="preserve">`
+}
