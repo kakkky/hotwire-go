@@ -220,3 +220,22 @@ func AttrDisableTurbo() template.HTMLAttr {
 func AttrEnableTurbo() template.HTMLAttr {
 	return `data-turbo="true"`
 }
+
+// AttrPreload renders data-turbo-preload on a link (a boolean attribute
+// with no value).
+//
+// Turbo Drive fetches the link's target and stores it in its snapshot
+// cache before the user activates the link, so the first visit feels
+// instantaneous. Use sparingly on links to pages that users are likely to
+// visit soon (primary nav items, "next post" links, etc.); over-preloading
+// wastes bandwidth on pages users may never open.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="/dashboard" {{ turboAttrPreload }}>Dashboard</a>
+//
+// Turbo Handbook — Preload Links Into the Cache:
+// https://turbo.hotwired.dev/handbook/drive#preload-links-into-the-cache
+func AttrPreload() template.HTMLAttr {
+	return `data-turbo-preload`
+}
