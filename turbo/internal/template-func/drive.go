@@ -135,3 +135,48 @@ func MetaRoot(path string) template.HTML {
 		template.HTMLEscapeString(path),
 	))
 }
+
+// AttrTrackReload renders data-turbo-track="reload" on a <link> or <script>
+// in <head>.
+//
+// Turbo Drive compares tracked elements between the current and destination
+// pages; if the element's src or href differs, Turbo aborts the visit and
+// performs a full browser reload instead. Use this to force a clean reload
+// when core assets (main JS/CSS bundles) change after a deploy, so the
+// browser picks up the new assets from scratch.
+//
+// Fingerprinted asset URLs (for example, /app.abc123.css) make this useful:
+// when the fingerprint changes, the URLs differ between visits and a full
+// reload is triggered.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<link rel="stylesheet" href="/app.abc123.css" {{ turboAttrTrackReload }}>
+//
+// Turbo Handbook — Reloading When Assets Change:
+// https://turbo.hotwired.dev/handbook/drive#reloading-when-assets-change
+func AttrTrackReload() template.HTMLAttr {
+	return `data-turbo-track="reload"`
+}
+
+// AttrTrackDynamic renders data-turbo-track="dynamic" on a <link> or
+// <style> in <head>.
+//
+// Turbo Drive tracks the element across navigations and removes it from
+// the DOM when it is absent from the destination page's HTML. Use this on
+// page-specific stylesheets that must not persist after leaving the page.
+// Complementary to AttrTrackReload: when the only change between pages is
+// styles, you can clean them up without forcing a full page reload.
+//
+// Applying this attribute to <script> is discouraged (already-evaluated
+// scripts cannot be un-evaluated by removing the element).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<link rel="stylesheet" href="/dashboard.css" {{ turboAttrTrackDynamic }}>
+//
+// Turbo Handbook — Removing Assets When They Change:
+// https://turbo.hotwired.dev/handbook/drive#removing-assets-when-they-change
+func AttrTrackDynamic() template.HTMLAttr {
+	return `data-turbo-track="dynamic"`
+}
