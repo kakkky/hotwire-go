@@ -54,3 +54,21 @@ func MetaCacheControlNoCache() template.HTML {
 func MetaViewTransition() template.HTML {
 	return `<meta name="view-transition" content="same-origin">`
 }
+
+// MetaRefreshMethodMorph renders <meta name="turbo-refresh-method" content="morph">.
+//
+// When the same URL is revisited (typically after a form submission that
+// redirects back to the current page), Turbo Drive applies a DOM morph
+// instead of replacing <body>. Focus, scroll, and in-place DOM state are
+// preserved wherever the old and new pages match. The default without this
+// meta is "replace" (full body swap).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaRefreshMethodMorph }}
+//
+// Turbo Handbook — Smooth page refreshes with morphing:
+// https://turbo.hotwired.dev/handbook/page_refreshes
+func MetaRefreshMethodMorph() template.HTML {
+	return `<meta name="turbo-refresh-method" content="morph">`
+}
