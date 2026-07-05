@@ -51,3 +51,26 @@ func AttrConfirm(message string) template.HTMLAttr {
 		template.HTMLEscapeString(message),
 	))
 }
+
+// AttrSubmitsWith renders data-turbo-submits-with="{text}" on a form
+// submitter (an input or button element).
+//
+// While the form is being submitted, Turbo replaces the submitter's label
+// with the given text (for example, "Saving..."); the original label is
+// restored after the request completes. Works with any Turbo-initiated form
+// submission, so it applies across Drive, Frames, and Streams.
+//
+// The text is HTML-escaped before insertion; pass a plain string.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<button {{ turboAttrSubmitsWith "Saving..." }}>Save</button>
+//
+// Turbo Reference — data-turbo-submits-with:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrSubmitsWith(text string) template.HTMLAttr {
+	return template.HTMLAttr(fmt.Sprintf(
+		`data-turbo-submits-with="%s"`,
+		template.HTMLEscapeString(text),
+	))
+}
