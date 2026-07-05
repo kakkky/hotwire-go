@@ -74,3 +74,21 @@ func AttrSubmitsWith(text string) template.HTMLAttr {
 		template.HTMLEscapeString(text),
 	))
 }
+
+// MetaVisitControlReload renders <meta name="turbo-visit-control" content="reload">.
+//
+// When Turbo navigates to this page — including navigations that originate
+// from a <turbo-frame> — it performs a full browser reload instead of a
+// Turbo visit. Use this on pages that are incompatible with the visit
+// lifecycle (third-party embeds that assume a fresh document, pages that
+// mutate global state during load, etc.).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	{{ turboMetaVisitControlReload }}
+//
+// Turbo Reference — turbo-visit-control:
+// https://turbo.hotwired.dev/reference/attributes#meta-tags
+func MetaVisitControlReload() template.HTML {
+	return `<meta name="turbo-visit-control" content="reload">`
+}

@@ -39,6 +39,7 @@ func TemplateFuncMap() template.FuncMap {
 		"turboScriptImport":              templatefunc.ScriptImport,
 		"turboAttrConfirm":               templatefunc.AttrConfirm,
 		"turboAttrSubmitsWith":           templatefunc.AttrSubmitsWith,
+		"turboMetaVisitControlReload":    templatefunc.MetaVisitControlReload,
 		"turboMetaCacheControlNoPreview": templatefunc.MetaCacheControlNoPreview,
 		"turboMetaCacheControlNoCache":   templatefunc.MetaCacheControlNoCache,
 	}
