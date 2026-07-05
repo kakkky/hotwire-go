@@ -288,6 +288,9 @@ func AttrDisablePrefetch() template.HTMLAttr {
 //
 //	<div id="chat" {{ turboAttrPermanent }}>...</div>
 //
+// Turbo Handbook — Persisting Elements Across Page Loads:
+// https://turbo.hotwired.dev/handbook/building#persisting-elements-across-page-loads
+//
 // Turbo Reference — data-turbo-permanent:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrPermanent() template.HTMLAttr {
