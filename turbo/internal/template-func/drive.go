@@ -269,3 +269,27 @@ func AttrPreload() template.HTMLAttr {
 func AttrDisablePrefetch() template.HTMLAttr {
 	return `data-turbo-prefetch="false"`
 }
+
+// AttrPermanent renders data-turbo-permanent on an element (a boolean
+// attribute with no value).
+//
+// The element is preserved across Turbo Drive navigations: instead of
+// being replaced or morphed with the destination page's equivalent, the
+// current instance is carried over as-is. The element must have a unique
+// id attribute so Turbo can match it between the current and destination
+// documents. Also excludes the element from morphing when
+// MetaRefreshMethodMorph is in effect.
+//
+// Typical uses: chat widgets or audio/video players that should keep
+// playing across navigations, and flash messages that must survive a
+// single follow-up visit.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<div id="chat" {{ turboAttrPermanent }}>...</div>
+//
+// Turbo Reference — data-turbo-permanent:
+// https://turbo.hotwired.dev/reference/attributes#data-attributes
+func AttrPermanent() template.HTMLAttr {
+	return `data-turbo-permanent`
+}
