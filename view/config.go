@@ -1,6 +1,9 @@
 package view
 
-import "html/template"
+import (
+	"html/template"
+	"maps"
+)
 
 // Config customizes how New discovers and parses view templates. Values
 // of this type are produced by the With* helpers in this package and
@@ -13,12 +16,31 @@ type config struct {
 	extensionName string // default ".gotmpl"
 }
 
-// WithFuncs registers a template.FuncMap that is attached to the layout
-// and every page before parsing. This must be used (not a later Funcs
-// call on the returned templates) whenever the templates reference the
-// helpers, because html/template resolves function names at parse time.
-func WithFuncs(f template.FuncMap) Config {
-	return func(c *config) { c.funcs = f }
+// WithFuncs registers one or more template.FuncMaps that are attached
+// to the layout and every page before parsing. Later maps override
+// earlier ones on key collisions, so callers can pass helper packages
+// in ascending priority (for example
+// view.WithFuncs(turbo.TemplateFuncMap(), stimulus.TemplateFuncMap())
+// makes stimulus helpers win on any shared name).
+//
+// This must be used (not a later Funcs call on the returned templates)
+// whenever the templates reference the helpers, because html/template
+// resolves function names at parse time.
+func WithFuncs(funcs ...template.FuncMap) Config {
+	return func(c *config) {
+		if len(funcs) == 0 {
+			return
+		}
+		var size int
+		for _, fm := range funcs {
+			size += len(fm)
+		}
+		merged := make(template.FuncMap, size)
+		for _, fm := range funcs {
+			maps.Copy(merged, fm)
+		}
+		c.funcs = merged
+	}
 }
 
 // WithLayout overrides the layout file's path, expressed relative to
