@@ -1,0 +1,10 @@
+<html>
+  <head>
+    <title>{{ block "title" . }}Default{{ end }}</title>
+  </head>
+  <body>
+    <div class="brand">{{ upper "hi" }}</div>
+    {{ template "shared" . }}
+    <main>{{ block "content" . }}{{ end }}</main>
+  </body>
+</html>
