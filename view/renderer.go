@@ -16,11 +16,32 @@ const (
 	defaultExtensionName = ".gotmpl"
 )
 
+// Renderer holds a set of page templates that have been pre-parsed
+// together with a common layout and shared partials. It is safe for
+// concurrent use once constructed by New, and is intended to be built
+// once at start-up and reused for the lifetime of the process.
 type Renderer struct {
 	pages          map[string]*template.Template
 	layoutExecName string
 }
 
+// New walks dir on fsys and constructs a Renderer from the templates it
+// finds. Files are classified by name:
+//
+//   - the layout file (default "layout.gotmpl", relative to dir) is
+//     used as the entry point for every page;
+//   - files whose base name starts with "_" are parsed as partials
+//     and made available to every page;
+//   - every other file with the configured extension becomes a page,
+//     keyed by its path relative to dir with the extension trimmed.
+//
+// The layout path and file extension can be overridden with WithLayout
+// and WithExtension. Template helper functions must be registered with
+// WithFuncs, because html/template resolves function names at parse
+// time.
+//
+// An error is returned if the walk fails, if the layout file is
+// missing, or if no page templates are found under dir.
 func New(fsys fs.FS, dir string, cfgs ...Config) (*Renderer, error) {
 	c := &config{
 		layoutPath:    defaultLayoutPath,
@@ -95,6 +116,16 @@ func New(fsys fs.FS, dir string, cfgs ...Config) (*Renderer, error) {
 	}, nil
 }
 
+// Render executes the template registered under page against data and
+// writes the result to w. The layout is used as the entry point of the
+// execution, so any {{define}} blocks provided by the page override the
+// layout's placeholders in the usual html/template way.
+//
+// Before writing the body, Render sets Content-Type to
+// "text/html; charset=utf-8" and writes the given HTTP status code.
+// The rendered output is buffered in memory first, so template
+// execution errors are returned without ever writing a partial
+// response. An unknown page returns an error without touching w.
 func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any) error {
 	t, ok := r.pages[page]
 	if !ok {
