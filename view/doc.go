@@ -12,7 +12,7 @@
 //     extension stripped (for example "sub/page.gotmpl" -> "sub/page").
 //
 // Both the layout path and the file extension can be customized via the
-// Config options returned by WithLayout and WithExtension. Template
+// Configs returned by WithLayout and WithExtension. Template
 // helper functions can be registered with WithFuncs; they must be
 // provided before parsing since html/template resolves function names
 // at parse time.

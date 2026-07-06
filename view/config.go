@@ -7,7 +7,7 @@ import (
 
 // Config customizes how New discovers and parses view templates. Values
 // of this type are produced by the With* helpers in this package and
-// applied left to right; later options override earlier ones.
+// applied left to right; later Configs override earlier ones.
 type Config func(c *config)
 
 type config struct {
