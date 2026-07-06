@@ -25,9 +25,16 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string) {
 }
 
 // TemplateFuncMap returns an html/template.FuncMap containing every Turbo
-// template helper provided by this package. Register it with the template
-// before parsing any file that references the helpers, since html/template
-// resolves function names at parse time:
+// template helper provided by this package. It must be registered before
+// parsing any file that references the helpers, because html/template
+// resolves function names at parse time. When using the sibling view
+// package, pass the result to view.WithFuncs so it is attached to the
+// layout and every page before parsing:
+//
+//	r, err := view.New(fsys, "views", view.WithFuncs(turbo.TemplateFuncMap()))
+//
+// When driving html/template directly, call Funcs on the base template
+// before ParseFiles / ParseFS:
 //
 //	tmpl := template.New("").Funcs(turbo.TemplateFuncMap()).ParseFiles(...)
 //
