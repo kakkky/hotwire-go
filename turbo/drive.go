@@ -1,4 +1,4 @@
-package templatefunc
+package turbo
 
 import (
 	"fmt"
@@ -17,9 +17,14 @@ import (
 //
 //	{{ turboMetaCacheControlNoPreview }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaCacheControlNoPreview()
+//
 // Turbo Handbook — Opting Out of Caching:
 // https://turbo.hotwired.dev/handbook/building#opting-out-of-caching
-func MetaCacheControlNoPreview() template.HTML {
+func MetaCacheControlNoPreview() Tag {
 	return `<meta name="turbo-cache-control" content="no-preview">`
 }
 
@@ -34,9 +39,14 @@ func MetaCacheControlNoPreview() template.HTML {
 //
 //	{{ turboMetaCacheControlNoCache }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaCacheControlNoCache()
+//
 // Turbo Handbook — Opting Out of Caching:
 // https://turbo.hotwired.dev/handbook/building#opting-out-of-caching
-func MetaCacheControlNoCache() template.HTML {
+func MetaCacheControlNoCache() Tag {
 	return `<meta name="turbo-cache-control" content="no-cache">`
 }
 
@@ -52,9 +62,14 @@ func MetaCacheControlNoCache() template.HTML {
 //
 //	{{ turboMetaViewTransition }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaViewTransition()
+//
 // Turbo Handbook — View transitions:
 // https://turbo.hotwired.dev/handbook/drive#view-transitions
-func MetaViewTransition() template.HTML {
+func MetaViewTransition() Tag {
 	return `<meta name="view-transition" content="same-origin">`
 }
 
@@ -70,9 +85,14 @@ func MetaViewTransition() template.HTML {
 //
 //	{{ turboMetaRefreshMethodMorph }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaRefreshMethodMorph()
+//
 // Turbo Handbook — Smooth page refreshes with morphing:
 // https://turbo.hotwired.dev/handbook/page_refreshes#morphing
-func MetaRefreshMethodMorph() template.HTML {
+func MetaRefreshMethodMorph() Tag {
 	return `<meta name="turbo-refresh-method" content="morph">`
 }
 
@@ -87,9 +107,14 @@ func MetaRefreshMethodMorph() template.HTML {
 //
 //	{{ turboMetaRefreshScrollPreserve }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaRefreshScrollPreserve()
+//
 // Turbo Handbook — Smooth page refreshes with morphing:
 // https://turbo.hotwired.dev/handbook/page_refreshes#scroll-preservation
-func MetaRefreshScrollPreserve() template.HTML {
+func MetaRefreshScrollPreserve() Tag {
 	return `<meta name="turbo-refresh-scroll" content="preserve">`
 }
 
@@ -112,9 +137,14 @@ func MetaRefreshScrollPreserve() template.HTML {
 //
 //	{{ turboMetaDisablePrefetch }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaDisablePrefetch()
+//
 // Turbo Handbook — Prefetching Links on Hover:
 // https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
-func MetaDisablePrefetch() template.HTML {
+func MetaDisablePrefetch() Tag {
 	return `<meta name="turbo-prefetch" content="false">`
 }
 
@@ -133,10 +163,15 @@ func MetaDisablePrefetch() template.HTML {
 //
 //	{{ turboMetaRoot "/app" }}
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@turbo.MetaRoot("...")
+//
 // Turbo Handbook — Setting a Root Location:
 // https://turbo.hotwired.dev/handbook/drive#setting-a-root-location
-func MetaRoot(path string) template.HTML {
-	return template.HTML(fmt.Sprintf(
+func MetaRoot(path string) Tag {
+	return Tag(fmt.Sprintf(
 		`<meta name="turbo-root" content="%s">`,
 		template.HTMLEscapeString(path),
 	))
@@ -159,10 +194,15 @@ func MetaRoot(path string) template.HTML {
 //
 //	<link rel="stylesheet" href="/app.abc123.css" {{ turboAttrTrackReload }}>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<link rel="stylesheet" href="..." { turbo.AttrTrackReload()... }>
+//
 // Turbo Handbook — Reloading When Assets Change:
 // https://turbo.hotwired.dev/handbook/drive#reloading-when-assets-change
-func AttrTrackReload() template.HTMLAttr {
-	return `data-turbo-track="reload"`
+func AttrTrackReload() Attrs {
+	return Attrs{Key: "data-turbo-track", Value: "reload"}
 }
 
 // AttrTrackDynamic renders data-turbo-track="dynamic" on a <link> or
@@ -181,10 +221,15 @@ func AttrTrackReload() template.HTMLAttr {
 //
 //	<link rel="stylesheet" href="/dashboard.css" {{ turboAttrTrackDynamic }}>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<link rel="stylesheet" href="..." { turbo.AttrTrackDynamic()... }>
+//
 // Turbo Handbook — Removing Assets When They Change:
 // https://turbo.hotwired.dev/handbook/drive#removing-assets-when-they-change
-func AttrTrackDynamic() template.HTMLAttr {
-	return `data-turbo-track="dynamic"`
+func AttrTrackDynamic() Attrs {
+	return Attrs{Key: "data-turbo-track", Value: "dynamic"}
 }
 
 // AttrDisableTurbo renders data-turbo="false" on a link, form, or any
@@ -203,10 +248,15 @@ func AttrTrackDynamic() template.HTMLAttr {
 //
 //	<a href="https://external.example.com" {{ turboAttrDisableTurbo }}>External</a>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<a href="..." { turbo.AttrDisableTurbo()... }>...</a>
+//
 // Turbo Reference — data-turbo:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
-func AttrDisableTurbo() template.HTMLAttr {
-	return `data-turbo="false"`
+func AttrDisableTurbo() Attrs {
+	return Attrs{Key: "data-turbo", Value: "false"}
 }
 
 // AttrEnableTurbo renders data-turbo="true" on a link, form, or container.
@@ -221,10 +271,17 @@ func AttrDisableTurbo() template.HTMLAttr {
 //	  <a href="/inside" {{ turboAttrEnableTurbo }}>Still Turbo</a>
 //	</div>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { turbo.AttrDisableTurbo()... }>
+//	  <a href="..." { turbo.AttrEnableTurbo()... }>...</a>
+//	</div>
+//
 // Turbo Reference — data-turbo:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
-func AttrEnableTurbo() template.HTMLAttr {
-	return `data-turbo="true"`
+func AttrEnableTurbo() Attrs {
+	return Attrs{Key: "data-turbo", Value: "true"}
 }
 
 // AttrPreload renders data-turbo-preload on a link (a boolean attribute
@@ -240,10 +297,15 @@ func AttrEnableTurbo() template.HTMLAttr {
 //
 //	<a href="/dashboard" {{ turboAttrPreload }}>Dashboard</a>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<a href="..." { turbo.AttrPreload()... }>...</a>
+//
 // Turbo Handbook — Preload Links Into the Cache:
 // https://turbo.hotwired.dev/handbook/drive#preload-links-into-the-cache
-func AttrPreload() template.HTMLAttr {
-	return `data-turbo-preload`
+func AttrPreload() Attrs {
+	return Attrs{Key: "data-turbo-preload", Value: true}
 }
 
 // AttrDisablePrefetch renders data-turbo-prefetch="false" on a specific link.
@@ -264,10 +326,15 @@ func AttrPreload() template.HTMLAttr {
 //
 //	<a href="/report/heavy" {{ turboAttrDisablePrefetch }}>Heavy Report</a>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<a href="..." { turbo.AttrDisablePrefetch()... }>...</a>
+//
 // Turbo Handbook — Prefetching Links on Hover:
 // https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
-func AttrDisablePrefetch() template.HTMLAttr {
-	return `data-turbo-prefetch="false"`
+func AttrDisablePrefetch() Attrs {
+	return Attrs{Key: "data-turbo-prefetch", Value: "false"}
 }
 
 // AttrPermanent renders data-turbo-permanent on an element (a boolean
@@ -288,13 +355,18 @@ func AttrDisablePrefetch() template.HTMLAttr {
 //
 //	<div id="chat" {{ turboAttrPermanent }}>...</div>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div id="..." { turbo.AttrPermanent()... }>...</div>
+//
 // Turbo Handbook — Persisting Elements Across Page Loads:
 // https://turbo.hotwired.dev/handbook/building#persisting-elements-across-page-loads
 //
 // Turbo Reference — data-turbo-permanent:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
-func AttrPermanent() template.HTMLAttr {
-	return `data-turbo-permanent`
+func AttrPermanent() Attrs {
+	return Attrs{Key: "data-turbo-permanent", Value: true}
 }
 
 // AttrTemporary renders data-turbo-temporary on an element (a boolean
@@ -310,13 +382,18 @@ func AttrPermanent() template.HTMLAttr {
 //
 //	<div class="flash" {{ turboAttrTemporary }}>Saved!</div>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div class="..." { turbo.AttrTemporary()... }>...</div>
+//
 // Turbo Handbook — Preparing the Page to be Cached:
 // https://turbo.hotwired.dev/handbook/building#preparing-the-page-to-be-cached
 //
 // Turbo Reference — data-turbo-temporary:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
-func AttrTemporary() template.HTMLAttr {
-	return `data-turbo-temporary`
+func AttrTemporary() Attrs {
+	return Attrs{Key: "data-turbo-temporary", Value: true}
 }
 
 // AttrDisableEval renders data-turbo-eval="false" on a <script> element.
@@ -334,11 +411,16 @@ func AttrTemporary() template.HTMLAttr {
 //
 //	<script {{ turboAttrDisableEval }}>oneShotBootstrap()</script>
 //
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<script { turbo.AttrDisableEval()... }>...</script>
+//
 // Turbo Handbook — Working with Script Elements:
 // https://turbo.hotwired.dev/handbook/building#working-with-script-elements
 //
 // Turbo Reference — data-turbo-eval:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
-func AttrDisableEval() template.HTMLAttr {
-	return `data-turbo-eval="false"`
+func AttrDisableEval() Attrs {
+	return Attrs{Key: "data-turbo-eval", Value: "false"}
 }
