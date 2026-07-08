@@ -211,3 +211,88 @@ func TestRender_Error(t *testing.T) {
 		})
 	}
 }
+
+func TestRenderPartial(t *testing.T) {
+	r, err := New(testdataFS, "testdata/valid/ok", WithFuncs(testFuncs))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		status     int
+		partial    string
+		data       any
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "shared partial rendered without layout",
+			status:     http.StatusOK,
+			partial:    "shared",
+			data:       nil,
+			wantStatus: http.StatusOK,
+			wantBody:   "SHARED",
+		},
+		{
+			name:       "partial receives data",
+			status:     http.StatusOK,
+			partial:    "greet",
+			data:       map[string]string{"Name": "Bob"},
+			wantStatus: http.StatusOK,
+			wantBody:   "Hello Bob",
+		},
+		{
+			name:       "custom status is respected",
+			status:     http.StatusUnprocessableEntity,
+			partial:    "shared",
+			data:       nil,
+			wantStatus: http.StatusUnprocessableEntity,
+			wantBody:   "SHARED",
+		},
+		{
+			name:       "partial in a nested directory is reachable",
+			status:     http.StatusOK,
+			partial:    "local",
+			data:       nil,
+			wantStatus: http.StatusOK,
+			wantBody:   "LOCAL",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			err := r.RenderPartial(w, tt.status, tt.partial, tt.data)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Equal(t, tt.wantBody, w.Body.String())
+			assert.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+		})
+	}
+}
+
+func TestRenderPartial_Error(t *testing.T) {
+	r, err := New(testdataFS, "testdata/valid/ok", WithFuncs(testFuncs))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		partial    string
+		wantErrMsg string
+	}{
+		{
+			name:       "unknown partial",
+			partial:    "does_not_exist",
+			wantErrMsg: `partial "does_not_exist" not found`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			err := r.RenderPartial(w, http.StatusOK, tt.partial, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErrMsg)
+			assert.Equal(t, http.StatusOK, w.Code) // untouched (recorder default)
+			assert.Empty(t, w.Body.String())
+		})
+	}
+}

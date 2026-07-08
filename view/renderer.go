@@ -21,6 +21,7 @@ const (
 // concurrent use once constructed by New, and is intended to be built
 // once at start-up and reused for the lifetime of the process.
 type Renderer struct {
+	base           *template.Template
 	pages          map[string]*template.Template
 	layoutExecName string
 }
@@ -111,6 +112,7 @@ func New(fsys fs.FS, dir string, cfgs ...Config) (*Renderer, error) {
 	}
 
 	return &Renderer{
+		base:           baseTemplate,
 		pages:          pages,
 		layoutExecName: path.Base(c.layoutPath) + c.extensionName,
 	}, nil
@@ -134,6 +136,38 @@ func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data a
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, r.layoutExecName, data); err != nil {
 		return fmt.Errorf("view: execute %q: %w", page, err)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// RenderPartial executes a single shared partial against data and
+// writes the result to w without going through the layout. name is any
+// {{define "name"}} declared by a shared partial file (a file whose
+// base name starts with "_") — the same identifier Render resolves
+// when the layout references it via {{template "name" .}} or
+// {{block "name" .}}. {{define}} blocks declared inside a page file
+// are not addressable through this method; put anything that needs to
+// be rendered on its own into a shared partial file.
+//
+// It is intended for Turbo-Frame responses (see turbo.IsFrameRequest):
+// the same {{define}} that supplies a portion of the full page can be
+// returned on its own so Turbo swaps just the matching <turbo-frame>,
+// without paying for the surrounding layout on the wire.
+//
+// Response-writing semantics match Render: Content-Type is set to
+// "text/html; charset=utf-8", the body is buffered before writing so
+// execution errors do not produce a partial response, and an unknown
+// name returns an error without touching w.
+func (r *Renderer) RenderPartial(w http.ResponseWriter, status int, name string, data any) error {
+	if r.base.Lookup(name) == nil {
+		return fmt.Errorf("view: partial %q not found", name)
+	}
+	var buf bytes.Buffer
+	if err := r.base.ExecuteTemplate(&buf, name, data); err != nil {
+		return fmt.Errorf("view: execute %q: %w", name, err)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
