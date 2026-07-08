@@ -12,8 +12,13 @@ import "net/http"
 // frame-only response: when true, render just the frame's contents; when
 // false, render the surrounding layout as usual.
 //
-// Turbo Handbook — Decompose with Turbo Frames:
-// https://turbo.hotwired.dev/handbook/frames
+// The Turbo Handbook and Reference do not document the Turbo-Frame
+// request header directly; the authoritative source is Turbo's
+// FrameController.prepareRequest, which assigns the header from the
+// initiating frame's id (see the link below, pinned to turboVersion).
+//
+// Turbo source — FrameController.prepareRequest:
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/core/frames/frame_controller.js#L206
 func IsFrameRequest(r *http.Request) bool {
 	return r.Header.Get("Turbo-Frame") != ""
 }
@@ -28,8 +33,13 @@ func IsFrameRequest(r *http.Request) bool {
 // Embedding the returned id in the response's <turbo-frame id="..."> lets
 // the same partial serve multiple frames without hard-coding the id.
 //
-// Turbo Handbook — Decompose with Turbo Frames:
-// https://turbo.hotwired.dev/handbook/frames
+// The Turbo Handbook and Reference do not document the Turbo-Frame
+// request header directly; the authoritative source is Turbo's
+// FrameController.prepareRequest, which assigns the header from the
+// initiating frame's id (see the link below, pinned to turboVersion).
+//
+// Turbo source — FrameController.prepareRequest:
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/core/frames/frame_controller.js#L206
 func FrameID(r *http.Request) string {
 	return r.Header.Get("Turbo-Frame")
 }
