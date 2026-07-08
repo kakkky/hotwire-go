@@ -67,8 +67,22 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrTemporary":             func() template.HTMLAttr { return AttrTemporary().HTMLAttr() },
 		"turboAttrDisableEval":           func() template.HTMLAttr { return AttrDisableEval().HTMLAttr() },
 
-		"turboFrame":    func(id string) template.HTML { return TurboFrame(id).HTMLTag() },
-		"turboFrameEnd": func() template.HTML { return TurboFrame("").Close().HTMLTag() },
+		"turboFrame":                        func(id string) template.HTML { return TurboFrame(id).HTMLTag() },
+		"turboFrameEnd":                     func() template.HTML { return TurboFrame("").Close().HTMLTag() },
+		"turboAttrSrc":                      func(s string) template.HTMLAttr { return AttrSrc(s).HTMLAttr() },
+		"turboAttrLoadingLazy":              func() template.HTMLAttr { return AttrLoadingLazy().HTMLAttr() },
+		"turboAttrLoadingEager":             func() template.HTMLAttr { return AttrLoadingEager().HTMLAttr() },
+		"turboAttrDisabled":                 func() template.HTMLAttr { return AttrDisabled().HTMLAttr() },
+		"turboAttrTarget":                   func(s string) template.HTMLAttr { return AttrTarget(s).HTMLAttr() },
+		"turboAttrRecurse":                  func(s string) template.HTMLAttr { return AttrRecurse(s).HTMLAttr() },
+		"turboAttrAutoscroll":               func() template.HTMLAttr { return AttrAutoscroll().HTMLAttr() },
+		"turboAttrAutoscrollBlockStart":     func() template.HTMLAttr { return AttrAutoscrollBlockStart().HTMLAttr() },
+		"turboAttrAutoscrollBlockCenter":    func() template.HTMLAttr { return AttrAutoscrollBlockCenter().HTMLAttr() },
+		"turboAttrAutoscrollBlockEnd":       func() template.HTMLAttr { return AttrAutoscrollBlockEnd().HTMLAttr() },
+		"turboAttrAutoscrollBlockNearest":   func() template.HTMLAttr { return AttrAutoscrollBlockNearest().HTMLAttr() },
+		"turboAttrAutoscrollBehaviorAuto":   func() template.HTMLAttr { return AttrAutoscrollBehaviorAuto().HTMLAttr() },
+		"turboAttrAutoscrollBehaviorSmooth": func() template.HTMLAttr { return AttrAutoscrollBehaviorSmooth().HTMLAttr() },
+		"turboAttrRefreshMorph":             func() template.HTMLAttr { return AttrRefreshMorph().HTMLAttr() },
 	}
 }
 
