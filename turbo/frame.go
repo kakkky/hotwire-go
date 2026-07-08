@@ -1,5 +1,43 @@
 package turbo
 
+import "net/http"
+
+// IsFrameRequest reports whether the request originated from a
+// <turbo-frame> navigation — that is, whether the Turbo-Frame request
+// header is present.
+//
+// Turbo attaches the Turbo-Frame header to every fetch it issues on behalf
+// of a <turbo-frame> (both src navigations and form submissions inside the
+// frame). Use this to branch a handler between a full-page response and a
+// frame-only response: when true, render just the frame's contents; when
+// false, render the surrounding layout as usual.
+//
+// The Accept header is not consulted here — it answers a different
+// question (whether the client can process a Turbo Stream response) and is
+// orthogonal to the frame-origin signal.
+//
+// Turbo Handbook — Decompose with Turbo Frames:
+// https://turbo.hotwired.dev/handbook/frames
+func IsFrameRequest(r *http.Request) bool {
+	return r.Header.Get("Turbo-Frame") != ""
+}
+
+// FrameID returns the value of the Turbo-Frame request header — the id of
+// the <turbo-frame> element that initiated the request. When the request
+// did not originate from a frame navigation, it returns "".
+//
+// Turbo matches a response back to the initiating frame by looking for a
+// <turbo-frame> in the response whose id equals this value; a mismatch
+// causes Turbo to log a "missing frame" error and abandon the swap.
+// Embedding the returned id in the response's <turbo-frame id="..."> lets
+// the same partial serve multiple frames without hard-coding the id.
+//
+// Turbo Handbook — Decompose with Turbo Frames:
+// https://turbo.hotwired.dev/handbook/frames
+func FrameID(r *http.Request) string {
+	return r.Header.Get("Turbo-Frame")
+}
+
 // TurboFrame builds a <turbo-frame id="..."> element carrying the given
 // id and any additional Frame-specific attributes (for example the
 // results of AttrSrc or AttrLoadingLazy).
