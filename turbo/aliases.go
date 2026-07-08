@@ -2,6 +2,7 @@ package turbo
 
 import (
 	"github.com/kakkky/hotwire-go/internal/attrs"
+	"github.com/kakkky/hotwire-go/internal/elm"
 	"github.com/kakkky/hotwire-go/internal/tag"
 )
 
@@ -21,3 +22,5 @@ type Attrs = attrs.Attrs
 // (https://github.com/a-h/templ) via the component-call syntax
 // `@turbo.TagX()`.
 type Tag = tag.Tag
+
+type Elm = elm.Elm

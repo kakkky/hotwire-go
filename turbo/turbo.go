@@ -66,6 +66,9 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrPermanent":             func() template.HTMLAttr { return AttrPermanent().HTMLAttr() },
 		"turboAttrTemporary":             func() template.HTMLAttr { return AttrTemporary().HTMLAttr() },
 		"turboAttrDisableEval":           func() template.HTMLAttr { return AttrDisableEval().HTMLAttr() },
+
+		"turboFrame":    func(id string) template.HTML { return TurboFrame(id).HTMLTag() },
+		"turboFrameEnd": func() template.HTML { return TurboFrame("").Close().HTMLTag() },
 	}
 }
 
