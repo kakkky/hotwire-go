@@ -12,10 +12,6 @@ import "net/http"
 // frame-only response: when true, render just the frame's contents; when
 // false, render the surrounding layout as usual.
 //
-// The Accept header is not consulted here — it answers a different
-// question (whether the client can process a Turbo Stream response) and is
-// orthogonal to the frame-origin signal.
-//
 // Turbo Handbook — Decompose with Turbo Frames:
 // https://turbo.hotwired.dev/handbook/frames
 func IsFrameRequest(r *http.Request) bool {
