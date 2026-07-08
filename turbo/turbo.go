@@ -73,6 +73,7 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrLoadingEager":             func() template.HTMLAttr { return AttrLoadingEager().HTMLAttr() },
 		"turboAttrDisabled":                 func() template.HTMLAttr { return AttrDisabled().HTMLAttr() },
 		"turboAttrTarget":                   func(id string) template.HTMLAttr { return AttrTarget(id).HTMLAttr() },
+		"turboAttrFrame":                    func(id string) template.HTMLAttr { return AttrFrame(id).HTMLAttr() },
 		"turboAttrRecurse":                  func(id string) template.HTMLAttr { return AttrRecurse(id).HTMLAttr() },
 		"turboAttrAutoscroll":               func() template.HTMLAttr { return AttrAutoscroll().HTMLAttr() },
 		"turboAttrAutoscrollBlockStart":     func() template.HTMLAttr { return AttrAutoscrollBlockStart().HTMLAttr() },

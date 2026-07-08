@@ -196,9 +196,11 @@ func AttrDisabled() Attrs {
 //
 // Descendant links and forms whose activation would normally update this
 // frame instead update the referenced element. Pass another
-// <turbo-frame>'s id, or "_top" to escape frames entirely and navigate
-// the whole window. Individual descendants can still override the target
-// with a data-turbo-frame attribute.
+// <turbo-frame>'s id, "_top" to escape frames entirely and navigate the
+// whole window, or "_parent" to drive the closest ancestor frame outside
+// this one (useful when this frame is nested inside another). Individual
+// descendants can still override the target with a data-turbo-frame
+// attribute.
 //
 // The value is HTML-escaped before insertion; pass a plain id string.
 //
@@ -219,6 +221,38 @@ func AttrDisabled() Attrs {
 // https://turbo.hotwired.dev/handbook/frames#targeting-navigation-into-or-out-of-a-frame
 func AttrTarget(id string) Attrs {
 	return Attrs{{Key: "target", Value: id}}
+}
+
+// AttrFrame renders data-turbo-frame="{id}" on a descendant link or
+// form of a <turbo-frame>.
+//
+// The attribute overrides which frame Turbo drives when the element is
+// activated. Pass another <turbo-frame>'s id to route the navigation
+// into that frame, or one of the special values: "_top" (escape all
+// frames and drive the whole page), "_parent" (drive the closest
+// ancestor frame outside this one; useful in nested frames), or
+// "_self" (keep the navigation in the enclosing frame — used to opt
+// a single link out of an AttrTarget default). AttrTarget sets a
+// default for every descendant of a frame; use AttrFrame when a
+// single link or form needs to opt out of that default — for example,
+// a "delete" link inside an item's frame that should navigate the
+// whole page after the item is removed.
+//
+// The value is HTML-escaped before insertion; pass a plain id string.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<a href="..." {{ turboAttrFrame "..." }}>...</a>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<a href="..." { turbo.AttrFrame("...")... }>...</a>
+//
+// Turbo Handbook — Targeting Navigation Into or Out of a Frame:
+// https://turbo.hotwired.dev/handbook/frames#targeting-navigation-into-or-out-of-a-frame
+func AttrFrame(id string) Attrs {
+	return Attrs{{Key: "data-turbo-frame", Value: id}}
 }
 
 // AttrRecurse renders recurse="{id}" on a <turbo-frame>.
