@@ -161,7 +161,7 @@ func MetaDisablePrefetch() Tag {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	{{ turboMetaRoot "/app" }}
+//	{{ turboMetaRoot "..." }}
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the component syntax:
@@ -192,7 +192,7 @@ func MetaRoot(path string) Tag {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<link rel="stylesheet" href="/app.abc123.css" {{ turboAttrTrackReload }}>
+//	<link rel="stylesheet" href="..." {{ turboAttrTrackReload }}>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -219,7 +219,7 @@ func AttrTrackReload() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<link rel="stylesheet" href="/dashboard.css" {{ turboAttrTrackDynamic }}>
+//	<link rel="stylesheet" href="..." {{ turboAttrTrackDynamic }}>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -246,7 +246,7 @@ func AttrTrackDynamic() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="https://external.example.com" {{ turboAttrDisableTurbo }}>External</a>
+//	<a href="..." {{ turboAttrDisableTurbo }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -268,7 +268,7 @@ func AttrDisableTurbo() Attrs {
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
 //	<div {{ turboAttrDisableTurbo }}>
-//	  <a href="/inside" {{ turboAttrEnableTurbo }}>Still Turbo</a>
+//	  <a href="..." {{ turboAttrEnableTurbo }}>...</a>
 //	</div>
 //
 // Alternatively, call it directly from an a-h/templ template
@@ -295,7 +295,7 @@ func AttrEnableTurbo() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/dashboard" {{ turboAttrPreload }}>Dashboard</a>
+//	<a href="..." {{ turboAttrPreload }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -324,7 +324,7 @@ func AttrPreload() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/report/heavy" {{ turboAttrDisablePrefetch }}>Heavy Report</a>
+//	<a href="..." {{ turboAttrDisablePrefetch }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -353,7 +353,7 @@ func AttrDisablePrefetch() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<div id="chat" {{ turboAttrPermanent }}>...</div>
+//	<div id="..." {{ turboAttrPermanent }}>...</div>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -380,7 +380,7 @@ func AttrPermanent() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<div class="flash" {{ turboAttrTemporary }}>Saved!</div>
+//	<div class="..." {{ turboAttrTemporary }}>...</div>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -409,7 +409,7 @@ func AttrTemporary() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<script {{ turboAttrDisableEval }}>oneShotBootstrap()</script>
+//	<script {{ turboAttrDisableEval }}>...</script>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:

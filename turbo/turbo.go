@@ -109,7 +109,7 @@ func ScriptImport() Tag {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/posts/1" {{ turboAttrMethodDelete }} {{ turboAttrConfirm "Are you sure?" }}>Delete</a>
+//	<a href="..." {{ turboAttrMethodDelete }} {{ turboAttrConfirm "..." }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -134,7 +134,7 @@ func AttrConfirm(message string) Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<button {{ turboAttrSubmitsWith "Saving..." }}>Save</button>
+//	<button {{ turboAttrSubmitsWith "..." }}>...</button>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -180,7 +180,7 @@ func MetaVisitControlReload() Tag {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<turbo-frame id="msg" {{ turboAttrActionAdvance }}>...</turbo-frame>
+//	<turbo-frame id="..." {{ turboAttrActionAdvance }}>...</turbo-frame>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -203,7 +203,7 @@ func AttrActionAdvance() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/edit" {{ turboAttrActionReplace }}>Edit</a>
+//	<a href="..." {{ turboAttrActionReplace }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -228,7 +228,7 @@ func AttrActionReplace() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/posts/1" {{ turboAttrMethodDelete }} {{ turboAttrConfirm "Are you sure?" }}>Delete</a>
+//	<a href="..." {{ turboAttrMethodDelete }} {{ turboAttrConfirm "..." }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -250,7 +250,7 @@ func AttrMethodDelete() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/posts/1/approve" {{ turboAttrMethodPatch }}>Approve</a>
+//	<a href="..." {{ turboAttrMethodPatch }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
@@ -271,7 +271,7 @@ func AttrMethodPatch() Attrs {
 //
 // Register via turbo.TemplateFuncMap and call from templates as:
 //
-//	<a href="/posts/1" {{ turboAttrMethodPut }}>Replace</a>
+//	<a href="..." {{ turboAttrMethodPut }}>...</a>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
