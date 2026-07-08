@@ -8,20 +8,21 @@ import (
 	"github.com/a-h/templ"
 )
 
-// Attrs is a single HTML attribute (key/value pair) in an engine-neutral
-// form. It is defined as templ.KeyValue[string, any] so a-h/templ can use
-// it directly, and it also exposes an html/template rendering via
-// HTMLAttr. See the package doc for how the two paths are wired up.
-type Attrs templ.KeyValue[string, any]
+// Attrs is a collection of HTML attributes (key/value pairs) in an
+// engine-neutral form. It is defined as a slice of templ.KeyValue so
+// a-h/templ can use it directly, and it also exposes an html/template
+// rendering via HTMLAttr. See the package doc for how the two paths are
+// wired up.
+type Attrs []templ.KeyValue[string, any]
 
-// Items satisfies the templ.Attributes interface by returning the receiver
-// as a single-element slice. It is what allows Attrs to be used with the
+// Items satisfies the templ.Attributes interface by returning the
+// receiver as a slice. It is what allows Attrs to be used with the
 // a-h/templ spread-attributes syntax `<... { attrHelper()... }>`.
 func (a Attrs) Items() []templ.KeyValue[string, any] {
-	return []templ.KeyValue[string, any]{templ.KeyValue[string, any](a)}
+	return []templ.KeyValue[string, any](a)
 }
 
-// HTMLAttr renders the attribute for html/template. It delegates to
+// HTMLAttr renders the attributes for html/template. It delegates to
 // templ.RenderAttributes so the escaping and formatting rules match the
 // a-h/templ path (boolean-valued attributes render as a bare name, string
 // values are attribute-quoted and escaped) and returns the result as

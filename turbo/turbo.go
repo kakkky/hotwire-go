@@ -119,7 +119,7 @@ func ScriptImport() Tag {
 // Turbo Reference — data-turbo-confirm:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrConfirm(message string) Attrs {
-	return Attrs{Key: "data-turbo-confirm", Value: message}
+	return Attrs{{Key: "data-turbo-confirm", Value: message}}
 }
 
 // AttrSubmitsWith renders data-turbo-submits-with="{text}" on a form
@@ -144,7 +144,7 @@ func AttrConfirm(message string) Attrs {
 // Turbo Reference — data-turbo-submits-with:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrSubmitsWith(text string) Attrs {
-	return Attrs{Key: "data-turbo-submits-with", Value: text}
+	return Attrs{{Key: "data-turbo-submits-with", Value: text}}
 }
 
 // MetaVisitControlReload renders <meta name="turbo-visit-control" content="reload">.
@@ -190,7 +190,7 @@ func MetaVisitControlReload() Tag {
 // Turbo Reference — data-turbo-action:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrActionAdvance() Attrs {
-	return Attrs{Key: "data-turbo-action", Value: "advance"}
+	return Attrs{{Key: "data-turbo-action", Value: "advance"}}
 }
 
 // AttrActionReplace renders data-turbo-action="replace" on a link or a
@@ -213,7 +213,7 @@ func AttrActionAdvance() Attrs {
 // Turbo Reference — data-turbo-action:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrActionReplace() Attrs {
-	return Attrs{Key: "data-turbo-action", Value: "replace"}
+	return Attrs{{Key: "data-turbo-action", Value: "replace"}}
 }
 
 // AttrMethodDelete renders data-turbo-method="delete" on a link.
@@ -238,7 +238,7 @@ func AttrActionReplace() Attrs {
 // Turbo Reference — data-turbo-method:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrMethodDelete() Attrs {
-	return Attrs{Key: "data-turbo-method", Value: "delete"}
+	return Attrs{{Key: "data-turbo-method", Value: "delete"}}
 }
 
 // AttrMethodPatch renders data-turbo-method="patch" on a link.
@@ -260,7 +260,7 @@ func AttrMethodDelete() Attrs {
 // Turbo Reference — data-turbo-method:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrMethodPatch() Attrs {
-	return Attrs{Key: "data-turbo-method", Value: "patch"}
+	return Attrs{{Key: "data-turbo-method", Value: "patch"}}
 }
 
 // AttrMethodPut renders data-turbo-method="put" on a link.
@@ -281,5 +281,5 @@ func AttrMethodPatch() Attrs {
 // Turbo Reference — data-turbo-method:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrMethodPut() Attrs {
-	return Attrs{Key: "data-turbo-method", Value: "put"}
+	return Attrs{{Key: "data-turbo-method", Value: "put"}}
 }

@@ -6,8 +6,8 @@ import (
 )
 
 // Attrs is the return type of every attribute helper in this package (for
-// example AttrConfirm, AttrMethodDelete). It carries a single HTML
-// attribute in an engine-neutral form so the same helper works with both
+// example AttrConfirm, AttrMethodDelete). It carries a collection of HTML
+// attributes in an engine-neutral form so the same helper works with both
 // html/template — via the HTMLAttr method registered through
 // TemplateFuncMap — and a-h/templ (https://github.com/a-h/templ) via the
 // spread-attributes syntax `{ turbo.AttrX(...)... }`.

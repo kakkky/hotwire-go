@@ -16,12 +16,12 @@ func TestAttrs_Items(t *testing.T) {
 	}{
 		{
 			name:  "string value",
-			attrs: Attrs{Key: "data-turbo-method", Value: "delete"},
+			attrs: Attrs{{Key: "data-turbo-method", Value: "delete"}},
 			want:  []templ.KeyValue[string, any]{{Key: "data-turbo-method", Value: "delete"}},
 		},
 		{
 			name:  "bool value",
-			attrs: Attrs{Key: "data-turbo-preload", Value: true},
+			attrs: Attrs{{Key: "data-turbo-preload", Value: true}},
 			want:  []templ.KeyValue[string, any]{{Key: "data-turbo-preload", Value: true}},
 		},
 	}
@@ -41,22 +41,22 @@ func TestAttrs_HTMLAttr(t *testing.T) {
 	}{
 		{
 			name:  "string value",
-			attrs: Attrs{Key: "data-turbo-method", Value: "delete"},
+			attrs: Attrs{{Key: "data-turbo-method", Value: "delete"}},
 			want:  ` data-turbo-method="delete"`,
 		},
 		{
 			name:  "bool true renders bare name",
-			attrs: Attrs{Key: "data-turbo-preload", Value: true},
+			attrs: Attrs{{Key: "data-turbo-preload", Value: true}},
 			want:  ` data-turbo-preload`,
 		},
 		{
 			name:  "bool false omits the attribute",
-			attrs: Attrs{Key: "data-turbo-preload", Value: false},
+			attrs: Attrs{{Key: "data-turbo-preload", Value: false}},
 			want:  "",
 		},
 		{
 			name:  "escape special characters in value",
-			attrs: Attrs{Key: "data-turbo-confirm", Value: `<"&>`},
+			attrs: Attrs{{Key: "data-turbo-confirm", Value: `<"&>`}},
 			want:  ` data-turbo-confirm="&lt;&#34;&amp;&gt;"`,
 		},
 	}

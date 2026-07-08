@@ -202,7 +202,7 @@ func MetaRoot(path string) Tag {
 // Turbo Handbook — Reloading When Assets Change:
 // https://turbo.hotwired.dev/handbook/drive#reloading-when-assets-change
 func AttrTrackReload() Attrs {
-	return Attrs{Key: "data-turbo-track", Value: "reload"}
+	return Attrs{{Key: "data-turbo-track", Value: "reload"}}
 }
 
 // AttrTrackDynamic renders data-turbo-track="dynamic" on a <link> or
@@ -229,7 +229,7 @@ func AttrTrackReload() Attrs {
 // Turbo Handbook — Removing Assets When They Change:
 // https://turbo.hotwired.dev/handbook/drive#removing-assets-when-they-change
 func AttrTrackDynamic() Attrs {
-	return Attrs{Key: "data-turbo-track", Value: "dynamic"}
+	return Attrs{{Key: "data-turbo-track", Value: "dynamic"}}
 }
 
 // AttrDisableTurbo renders data-turbo="false" on a link, form, or any
@@ -256,7 +256,7 @@ func AttrTrackDynamic() Attrs {
 // Turbo Reference — data-turbo:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrDisableTurbo() Attrs {
-	return Attrs{Key: "data-turbo", Value: "false"}
+	return Attrs{{Key: "data-turbo", Value: "false"}}
 }
 
 // AttrEnableTurbo renders data-turbo="true" on a link, form, or container.
@@ -281,7 +281,7 @@ func AttrDisableTurbo() Attrs {
 // Turbo Reference — data-turbo:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrEnableTurbo() Attrs {
-	return Attrs{Key: "data-turbo", Value: "true"}
+	return Attrs{{Key: "data-turbo", Value: "true"}}
 }
 
 // AttrPreload renders data-turbo-preload on a link (a boolean attribute
@@ -305,7 +305,7 @@ func AttrEnableTurbo() Attrs {
 // Turbo Handbook — Preload Links Into the Cache:
 // https://turbo.hotwired.dev/handbook/drive#preload-links-into-the-cache
 func AttrPreload() Attrs {
-	return Attrs{Key: "data-turbo-preload", Value: true}
+	return Attrs{{Key: "data-turbo-preload", Value: true}}
 }
 
 // AttrDisablePrefetch renders data-turbo-prefetch="false" on a specific link.
@@ -334,7 +334,7 @@ func AttrPreload() Attrs {
 // Turbo Handbook — Prefetching Links on Hover:
 // https://turbo.hotwired.dev/handbook/drive#prefetching-links-on-hover
 func AttrDisablePrefetch() Attrs {
-	return Attrs{Key: "data-turbo-prefetch", Value: "false"}
+	return Attrs{{Key: "data-turbo-prefetch", Value: "false"}}
 }
 
 // AttrPermanent renders data-turbo-permanent on an element (a boolean
@@ -366,7 +366,7 @@ func AttrDisablePrefetch() Attrs {
 // Turbo Reference — data-turbo-permanent:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrPermanent() Attrs {
-	return Attrs{Key: "data-turbo-permanent", Value: true}
+	return Attrs{{Key: "data-turbo-permanent", Value: true}}
 }
 
 // AttrTemporary renders data-turbo-temporary on an element (a boolean
@@ -393,7 +393,7 @@ func AttrPermanent() Attrs {
 // Turbo Reference — data-turbo-temporary:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrTemporary() Attrs {
-	return Attrs{Key: "data-turbo-temporary", Value: true}
+	return Attrs{{Key: "data-turbo-temporary", Value: true}}
 }
 
 // AttrDisableEval renders data-turbo-eval="false" on a <script> element.
@@ -422,5 +422,5 @@ func AttrTemporary() Attrs {
 // Turbo Reference — data-turbo-eval:
 // https://turbo.hotwired.dev/reference/attributes#data-attributes
 func AttrDisableEval() Attrs {
-	return Attrs{Key: "data-turbo-eval", Value: "false"}
+	return Attrs{{Key: "data-turbo-eval", Value: "false"}}
 }
