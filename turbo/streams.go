@@ -1,5 +1,49 @@
 package turbo
 
+import (
+	"net/http"
+	"strings"
+)
+
+// IsStreamRequest reports whether the client accepts a Turbo Streams
+// response — that is, whether "text/vnd.turbo-stream.html" appears in
+// the request's Accept header.
+//
+// Turbo appends the Turbo Streams MIME type to Accept on every form
+// submission it intercepts (via FormSubmission#prepareRequest). Use
+// this to branch a handler between a full HTML response for direct
+// navigation and a <turbo-stream> response for Turbo-driven
+// submissions: when true, set Content-Type to
+// "text/vnd.turbo-stream.html" on the response and write one or more
+// StreamX elements; when false, render the surrounding layout as usual.
+//
+// Turbo source — StreamMessage.contentType:
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/core/streams/stream_message.js#L4
+//
+// Turbo source — FormSubmission (attaching the Accept type):
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/core/drive/form_submission.js#L118
+func IsStreamRequest(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "text/vnd.turbo-stream.html")
+}
+
+// RequestID returns the value of the X-Turbo-Request-Id request header —
+// a UUID Turbo generates for every fetch it issues and remembers on the
+// client for a short window (up to 20 recent ids). When the request did
+// not originate from a Turbo fetch, it returns "".
+//
+// Echo this value back on a broadcast <turbo-stream action="refresh">
+// via AttrRequestID so the originating client, which still remembers its
+// own id in recentRequests, skips its own refresh event and only the
+// other clients apply it. Without this echo, the submitter's page would
+// refresh twice: once from the direct response and once from the
+// broadcast.
+//
+// Turbo source — X-Turbo-Request-Id / recentRequests:
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/http/fetch.js#L10
+func RequestID(r *http.Request) string {
+	return r.Header.Get("X-Turbo-Request-Id")
+}
+
 // StreamAppend builds a <turbo-stream action="append" target="..."> element
 // carrying the given target and any additional Stream-specific attributes.
 //
