@@ -159,29 +159,46 @@ func TestRender(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name       string
-		status     int
-		page       string
-		data       any
-		wantStatus int
-		wantBody   string
+		name              string
+		status            int
+		page              string
+		data              any
+		presetContentType string
+		wantStatus        int
+		wantBody          string
+		wantContentType   string
 	}{
 		{
-			name:       "custom status is respected",
-			status:     http.StatusUnprocessableEntity,
-			page:       "home",
-			data:       map[string]string{"Name": "Bob"},
-			wantStatus: http.StatusUnprocessableEntity,
-			wantBody:   "Hello Bob",
+			name:            "custom status is respected and default Content-Type is set",
+			status:          http.StatusUnprocessableEntity,
+			page:            "home",
+			data:            map[string]string{"Name": "Bob"},
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantBody:        "Hello Bob",
+			wantContentType: "text/html; charset=utf-8",
+		},
+		{
+			name:              "caller-set Content-Type is preserved",
+			status:            http.StatusOK,
+			page:              "home",
+			data:              map[string]string{"Name": "Test"},
+			presetContentType: "text/vnd.turbo-stream.html; charset=utf-8",
+			wantStatus:        http.StatusOK,
+			wantBody:          "Hello Test",
+			wantContentType:   "text/vnd.turbo-stream.html; charset=utf-8",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
+			if tt.presetContentType != "" {
+				w.Header().Set("Content-Type", tt.presetContentType)
+			}
 			err := r.Render(w, tt.status, tt.page, tt.data)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			assert.Contains(t, w.Body.String(), tt.wantBody)
+			assert.Equal(t, tt.wantContentType, w.Header().Get("Content-Type"))
 		})
 	}
 }
@@ -217,54 +234,73 @@ func TestRenderPartial(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		name       string
-		status     int
-		partial    string
-		data       any
-		wantStatus int
-		wantBody   string
+		name              string
+		status            int
+		partial           string
+		data              any
+		presetContentType string
+		wantStatus        int
+		wantBody          string
+		wantContentType   string
 	}{
 		{
-			name:       "shared partial rendered without layout",
-			status:     http.StatusOK,
-			partial:    "shared",
-			data:       nil,
-			wantStatus: http.StatusOK,
-			wantBody:   "SHARED",
+			name:            "shared partial rendered without layout",
+			status:          http.StatusOK,
+			partial:         "shared",
+			data:            nil,
+			wantStatus:      http.StatusOK,
+			wantBody:        "SHARED",
+			wantContentType: "text/html; charset=utf-8",
 		},
 		{
-			name:       "partial receives data",
-			status:     http.StatusOK,
-			partial:    "greet",
-			data:       map[string]string{"Name": "Bob"},
-			wantStatus: http.StatusOK,
-			wantBody:   "Hello Bob",
+			name:            "partial receives data",
+			status:          http.StatusOK,
+			partial:         "greet",
+			data:            map[string]string{"Name": "Bob"},
+			wantStatus:      http.StatusOK,
+			wantBody:        "Hello Bob",
+			wantContentType: "text/html; charset=utf-8",
 		},
 		{
-			name:       "custom status is respected",
-			status:     http.StatusUnprocessableEntity,
-			partial:    "shared",
-			data:       nil,
-			wantStatus: http.StatusUnprocessableEntity,
-			wantBody:   "SHARED",
+			name:            "custom status is respected",
+			status:          http.StatusUnprocessableEntity,
+			partial:         "shared",
+			data:            nil,
+			wantStatus:      http.StatusUnprocessableEntity,
+			wantBody:        "SHARED",
+			wantContentType: "text/html; charset=utf-8",
 		},
 		{
-			name:       "partial in a nested directory is reachable",
-			status:     http.StatusOK,
-			partial:    "local",
-			data:       nil,
-			wantStatus: http.StatusOK,
-			wantBody:   "LOCAL",
+			name:            "partial in a nested directory is reachable",
+			status:          http.StatusOK,
+			partial:         "local",
+			data:            nil,
+			wantStatus:      http.StatusOK,
+			wantBody:        "LOCAL",
+			wantContentType: "text/html; charset=utf-8",
+		},
+		{
+			name:              "caller-set Content-Type is preserved",
+			status:            http.StatusOK,
+			partial:           "shared",
+			data:              nil,
+			presetContentType: "text/vnd.turbo-stream.html; charset=utf-8",
+			wantStatus:        http.StatusOK,
+			wantBody:          "SHARED",
+			wantContentType:   "text/vnd.turbo-stream.html; charset=utf-8",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
+			if tt.presetContentType != "" {
+				w.Header().Set("Content-Type", tt.presetContentType)
+			}
 			err := r.RenderPartial(w, tt.status, tt.partial, tt.data)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, w.Code)
 			assert.Equal(t, tt.wantBody, w.Body.String())
-			assert.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+			assert.Equal(t, tt.wantContentType, w.Header().Get("Content-Type"))
 		})
 	}
 }

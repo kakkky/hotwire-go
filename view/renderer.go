@@ -123,8 +123,10 @@ func New(fsys fs.FS, dir string, cfgs ...Config) (*Renderer, error) {
 // execution, so any {{define}} blocks provided by the page override the
 // layout's placeholders in the usual html/template way.
 //
-// Before writing the body, Render sets Content-Type to
-// "text/html; charset=utf-8" and writes the given HTTP status code.
+// Before writing the body, Render defaults Content-Type to
+// "text/html; charset=utf-8" (leaving it untouched if the caller has
+// already set one, so headers like Turbo Streams' Content-Type set via
+// turbo.StreamHeader survive) and writes the given HTTP status code.
 // The rendered output is buffered in memory first, so template
 // execution errors are returned without ever writing a partial
 // response. An unknown page returns an error without touching w.
@@ -137,7 +139,9 @@ func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data a
 	if err := t.ExecuteTemplate(&buf, r.layoutExecName, data); err != nil {
 		return fmt.Errorf("view: execute %q: %w", page, err)
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}
 	w.WriteHeader(status)
 	_, err := buf.WriteTo(w)
 	return err
@@ -157,10 +161,12 @@ func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data a
 // returned on its own so Turbo swaps just the matching <turbo-frame>,
 // without paying for the surrounding layout on the wire.
 //
-// Response-writing semantics match Render: Content-Type is set to
-// "text/html; charset=utf-8", the body is buffered before writing so
-// execution errors do not produce a partial response, and an unknown
-// name returns an error without touching w.
+// Response-writing semantics match Render: Content-Type defaults to
+// "text/html; charset=utf-8" unless the caller has already set one
+// (letting turbo.StreamHeader take effect for Turbo Streams
+// partials), the body is buffered before writing so execution errors
+// do not produce a partial response, and an unknown name returns an
+// error without touching w.
 func (r *Renderer) RenderPartial(w http.ResponseWriter, status int, name string, data any) error {
 	if r.base.Lookup(name) == nil {
 		return fmt.Errorf("view: partial %q not found", name)
@@ -169,7 +175,9 @@ func (r *Renderer) RenderPartial(w http.ResponseWriter, status int, name string,
 	if err := r.base.ExecuteTemplate(&buf, name, data); err != nil {
 		return fmt.Errorf("view: execute %q: %w", name, err)
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if w.Header().Get("Content-Type") == "" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}
 	w.WriteHeader(status)
 	_, err := buf.WriteTo(w)
 	return err
