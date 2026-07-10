@@ -8,6 +8,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestStreamHeader(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	StreamHeader(w)
+
+	assert.Equal(t, "text/vnd.turbo-stream.html; charset=utf-8", w.Header().Get("Content-Type"))
+}
+
 func TestRedirect(t *testing.T) {
 	tests := []struct {
 		name string

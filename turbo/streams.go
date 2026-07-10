@@ -44,6 +44,36 @@ func RequestID(r *http.Request) string {
 	return r.Header.Get("X-Turbo-Request-Id")
 }
 
+// StreamHeader sets Content-Type on the response to
+// "text/vnd.turbo-stream.html; charset=utf-8" so Turbo processes the body
+// as one or more <turbo-stream> actions rather than rendering it as a
+// full HTML document.
+//
+// Turbo dispatches fetch responses by inspecting Content-Type: when the
+// value contains "text/vnd.turbo-stream.html", the body is parsed as
+// Turbo Streams and each <turbo-stream> element is applied to the DOM.
+// Any other Content-Type is treated as a regular HTML response and
+// rendered into the initiating frame or as a full page visit. Omitting
+// this header silently drops the stream — the request succeeds but no
+// DOM mutation is applied.
+//
+// Call this before WriteHeader and any body write on a handler that
+// responds with StreamX elements. Pair with IsStreamRequest to gate the
+// stream branch:
+//
+//	if turbo.IsStreamRequest(r) {
+//	    turbo.StreamHeader(w)
+//	    w.WriteHeader(http.StatusOK)
+//	    // write one or more <turbo-stream> elements
+//	    return
+//	}
+//
+// Turbo source — StreamMessage.contentType:
+// https://github.com/hotwired/turbo/blob/v8.0.23/src/core/streams/stream_message.js#L4
+func StreamHeader(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/vnd.turbo-stream.html; charset=utf-8")
+}
+
 // StreamAppend builds a <turbo-stream action="append" target="..."> element
 // carrying the given target and any additional Stream-specific attributes.
 //
