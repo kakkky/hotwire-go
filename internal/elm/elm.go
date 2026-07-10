@@ -22,8 +22,21 @@ type Elm struct {
 	// here is a bare tag name rather than a pre-rendered fragment.
 	Tag tag.Tag
 
-	// IsClosingTag switches the renderer into closing-tag mode. When true,
-	// both Render and HTMLTag emit "</tag>" and Attrs is ignored.
+	// InnerTag optionally names a wrapper element that sits between the
+	// outer Tag and its children (for example "template" inside
+	// <turbo-stream>, which requires <template>...</template> around
+	// the action's content). When non-empty, opening mode emits
+	// "<Tag attrs><InnerTag>" — no attrs on the wrapper — and closing
+	// mode emits "</InnerTag></Tag>". Leave empty for elements that
+	// need no wrapper (the default), such as <turbo-frame>.
+	InnerTag tag.Tag
+
+	// IsClosingTag switches HTMLTag into closing-tag mode. When true,
+	// HTMLTag emits "</InnerTag></Tag>" (or just "</Tag>" when InnerTag
+	// is empty) and Attrs is ignored. Render ignores this field: the
+	// templ path always renders the element atomically, so splitting into
+	// open/close sides is a concern of the html/template funcmap layer
+	// only.
 	IsClosingTag bool
 
 	// Attrs are the attributes rendered on the opening tag. Ignored when
@@ -46,14 +59,21 @@ func (e Elm) Close() Elm {
 // including any children carried on ctx, so `@Elm(...) { children }`
 // works with the a-h/templ spread syntax. Closing mode emits "</tag>".
 func (e Elm) Render(ctx context.Context, w io.Writer) error {
-	if e.IsClosingTag {
-		return writeCloseTag(w, e.Tag)
-	}
 	if err := writeOpenTag(ctx, w, e.Tag, e.Attrs, nil); err != nil {
 		return err
 	}
+	if e.InnerTag != "" {
+		if err := writeOpenTag(ctx, w, e.InnerTag, nil, nil); err != nil {
+			return err
+		}
+	}
 	if children := templ.GetChildren(ctx); children != nil {
 		if err := children.Render(templ.ClearChildren(ctx), w); err != nil {
+			return err
+		}
+	}
+	if e.InnerTag != "" {
+		if err := writeCloseTag(w, e.InnerTag); err != nil {
 			return err
 		}
 	}
@@ -73,10 +93,18 @@ func (e Elm) Render(ctx context.Context, w io.Writer) error {
 // so the concatenation lives in Elm rather than in the funcmap.
 func (e Elm) HTMLTag(extra ...template.HTMLAttr) template.HTML {
 	var buf bytes.Buffer
-	if e.IsClosingTag {
+	switch e.IsClosingTag {
+	case true:
+		if e.InnerTag != "" {
+			_ = writeCloseTag(&buf, e.InnerTag)
+		}
 		_ = writeCloseTag(&buf, e.Tag)
-	} else {
-		_ = writeOpenTag(context.Background(), &buf, e.Tag, e.Attrs, extra)
+	case false:
+		ctx := context.Background()
+		_ = writeOpenTag(ctx, &buf, e.Tag, e.Attrs, extra)
+		if e.InnerTag != "" {
+			_ = writeOpenTag(ctx, &buf, e.InnerTag, nil, nil)
+		}
 	}
 	return template.HTML(buf.String())
 }
