@@ -34,9 +34,9 @@ package turbo
 // Turbo Reference — StreamActions.append:
 // https://turbo.hotwired.dev/reference/streams#append
 func StreamAppend(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "append"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "append"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -82,9 +82,9 @@ func StreamAppend(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.prepend:
 // https://turbo.hotwired.dev/reference/streams#prepend
 func StreamPrepend(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "prepend"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "prepend"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -130,9 +130,9 @@ func StreamPrepend(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.replace:
 // https://turbo.hotwired.dev/reference/streams#replace
 func StreamReplace(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "replace"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "replace"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -178,9 +178,9 @@ func StreamReplace(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.update:
 // https://turbo.hotwired.dev/reference/streams#update
 func StreamUpdate(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "update"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "update"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -222,9 +222,9 @@ func StreamUpdate(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.remove:
 // https://turbo.hotwired.dev/reference/streams#remove
 func StreamRemove(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "remove"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "remove"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -270,9 +270,9 @@ func StreamRemove(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.before:
 // https://turbo.hotwired.dev/reference/streams#before
 func StreamBefore(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "before"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "before"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -318,9 +318,9 @@ func StreamBefore(target string, extra ...Attrs) Elm {
 // Turbo Reference — StreamActions.after:
 // https://turbo.hotwired.dev/reference/streams#after
 func StreamAfter(target string, extra ...Attrs) Elm {
-	attrs := Attrs{
-		{Key: "action", Value: "after"},
-		{Key: "target", Value: target},
+	attrs := Attrs{{Key: "action", Value: "after"}}
+	if target != "" {
+		attrs = append(attrs, Attrs{{Key: "target", Value: target}}...)
 	}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -374,4 +374,91 @@ func StreamRefresh(extra ...Attrs) Elm {
 		InnerTag: Tag("template"),
 		Attrs:    attrs,
 	}
+}
+
+// AttrTargets renders targets="{selector}" on a <turbo-stream>.
+//
+// Turbo applies the stream action to every element matched by the given
+// CSS selector, rather than to a single element identified by id. Use it
+// with StreamAppend, StreamPrepend, StreamReplace, StreamUpdate,
+// StreamRemove, StreamBefore, or StreamAfter when the same mutation
+// should fan out to multiple targets in one stream element (for example,
+// removing every ".notification" or updating every ".unread" badge).
+// The targets attribute is mutually exclusive with target: pass an empty
+// string as the StreamX target argument and add AttrTargets via extra
+// Attrs so only targets is emitted.
+//
+// The selector is HTML-escaped before insertion; pass a plain CSS
+// selector string.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<turbo-stream action="..." {{ turboAttrTargets "..." }}>...</turbo-stream>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) via a StreamX helper's extra Attrs:
+//
+//	@turbo.StreamRemove("", turbo.AttrTargets("...")) {
+//	    ...
+//	}
+//
+// Turbo Reference — targets:
+// https://turbo.hotwired.dev/reference/streams#targeting-multiple-elements
+func AttrTargets(selector string) Attrs {
+	return Attrs{{Key: "targets", Value: selector}}
+}
+
+// AttrRequestID renders request-id="{id}" on a <turbo-stream>.
+//
+// Turbo uses the request-id to deduplicate refresh events when the same
+// page-wide refresh is broadcast to multiple clients over Turbo Streams:
+// the client that initiated the underlying change receives its own
+// refresh event and skips it, while other clients apply it normally. Pair
+// with StreamRefresh; other actions ignore this attribute.
+//
+// The id is HTML-escaped before insertion; pass a plain id string
+// (typically the same id set on the request that produced the change,
+// for example via the X-Turbo-Request-Id header).
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<turbo-stream action="refresh" {{ turboAttrRequestID "..." }}></turbo-stream>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) via a StreamRefresh's extra Attrs:
+//
+//	@turbo.StreamRefresh(turbo.AttrRequestID("..."))
+//
+// Turbo Reference — StreamActions.refresh:
+// https://turbo.hotwired.dev/reference/streams#refresh
+func AttrRequestID(id string) Attrs {
+	return Attrs{{Key: "request-id", Value: id}}
+}
+
+// AttrMethodMorph renders method="morph" on a <turbo-stream>.
+//
+// Turbo switches the stream action from full-node replacement to a
+// morphdom-based diff swap: attributes are patched in place, children
+// are reconciled by id where possible, and event listeners, form state,
+// and focus bound to unchanged nodes are preserved. Pair with
+// StreamReplace, StreamUpdate, or StreamRefresh; other actions ignore
+// this attribute. Note: this attribute is scoped to <turbo-stream> and
+// is distinct from AttrRefreshMorph, which renders refresh="morph" on
+// <turbo-frame> for frame-level page refresh behavior.
+//
+// Register via turbo.TemplateFuncMap and call from templates as:
+//
+//	<turbo-stream action="replace" target="..." {{ turboAttrMethodMorph }}>...</turbo-stream>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) via a StreamX helper's extra Attrs:
+//
+//	@turbo.StreamReplace("...", turbo.AttrMethodMorph()) {
+//	    ...
+//	}
+//
+// Turbo Reference — Morphing Turbo Stream actions:
+// https://turbo.hotwired.dev/reference/streams#morphing
+func AttrMethodMorph() Attrs {
+	return Attrs{{Key: "method", Value: "morph"}}
 }
