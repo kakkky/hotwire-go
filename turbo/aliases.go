@@ -24,7 +24,7 @@ type Attrs = attrs.Attrs
 type Tag = tag.Tag
 
 // Elm is the return type of every element helper in this package that
-// wraps children (for example TurboFrame). It carries a structured tag
+// wraps children (for example Frame). It carries a structured tag
 // name and its attributes in an engine-neutral form so the same helper
 // works with both html/template — where TemplateFuncMap registers
 // separate opening and closing funcmap entries (for example

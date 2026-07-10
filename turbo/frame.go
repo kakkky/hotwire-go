@@ -44,7 +44,7 @@ func FrameID(r *http.Request) string {
 	return r.Header.Get("Turbo-Frame")
 }
 
-// TurboFrame builds a <turbo-frame id="..."> element carrying the given
+// Frame builds a <turbo-frame id="..."> element carrying the given
 // id and any additional Frame-specific attributes (for example the
 // results of AttrSrc or AttrLoadingLazy).
 //
@@ -67,13 +67,13 @@ func FrameID(r *http.Request) string {
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) via the component-call syntax:
 //
-//	@turbo.TurboFrame("...") {
+//	@turbo.Frame("...") {
 //	    ...
 //	}
 //
 // Turbo Handbook — Decompose with Turbo Frames:
 // https://turbo.hotwired.dev/handbook/frames
-func TurboFrame(id string, extra ...Attrs) Elm {
+func Frame(id string, extra ...Attrs) Elm {
 	attrs := Attrs{{Key: "id", Value: id}}
 	for _, extraAttrs := range extra {
 		attrs = append(attrs, extraAttrs...)
@@ -101,9 +101,9 @@ func TurboFrame(id string, extra ...Attrs) Elm {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrSrc("...")) {
+//	@turbo.Frame("...", turbo.AttrSrc("...")) {
 //	    ...
 //	}
 //
@@ -128,9 +128,9 @@ func AttrSrc(url string) Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrSrc("..."), turbo.AttrLoadingLazy()) {
+//	@turbo.Frame("...", turbo.AttrSrc("..."), turbo.AttrLoadingLazy()) {
 //	    ...
 //	}
 //
@@ -154,9 +154,9 @@ func AttrLoadingLazy() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrSrc("..."), turbo.AttrLoadingEager()) {
+//	@turbo.Frame("...", turbo.AttrSrc("..."), turbo.AttrLoadingEager()) {
 //	    ...
 //	}
 //
@@ -180,9 +180,9 @@ func AttrLoadingEager() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrDisabled()) {
+//	@turbo.Frame("...", turbo.AttrDisabled()) {
 //	    ...
 //	}
 //
@@ -211,9 +211,9 @@ func AttrDisabled() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrTarget("...")) {
+//	@turbo.Frame("...", turbo.AttrTarget("...")) {
 //	    ...
 //	}
 //
@@ -275,9 +275,9 @@ func AttrFrame(id string) Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrRecurse("...")) {
+//	@turbo.Frame("...", turbo.AttrRecurse("...")) {
 //	    ...
 //	}
 //
@@ -303,9 +303,9 @@ func AttrRecurse(id string) Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll()) {
 //	    ...
 //	}
 //
@@ -330,9 +330,9 @@ func AttrAutoscroll() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockStart()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockStart()) {
 //	    ...
 //	}
 //
@@ -357,9 +357,9 @@ func AttrAutoscrollBlockStart() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockCenter()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockCenter()) {
 //	    ...
 //	}
 //
@@ -385,9 +385,9 @@ func AttrAutoscrollBlockCenter() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockEnd()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockEnd()) {
 //	    ...
 //	}
 //
@@ -412,9 +412,9 @@ func AttrAutoscrollBlockEnd() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockNearest()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBlockNearest()) {
 //	    ...
 //	}
 //
@@ -440,9 +440,9 @@ func AttrAutoscrollBlockNearest() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBehaviorAuto()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBehaviorAuto()) {
 //	    ...
 //	}
 //
@@ -467,9 +467,9 @@ func AttrAutoscrollBehaviorAuto() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBehaviorSmooth()) {
+//	@turbo.Frame("...", turbo.AttrAutoscroll(), turbo.AttrAutoscrollBehaviorSmooth()) {
 //	    ...
 //	}
 //
@@ -494,9 +494,9 @@ func AttrAutoscrollBehaviorSmooth() Attrs {
 //	{{ turboFrameEnd }}
 //
 // Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the TurboFrame helper:
+// (https://github.com/a-h/templ) via the Frame helper:
 //
-//	@turbo.TurboFrame("...", turbo.AttrSrc("..."), turbo.AttrRefreshMorph())
+//	@turbo.Frame("...", turbo.AttrSrc("..."), turbo.AttrRefreshMorph())
 //
 // Turbo Handbook — Turbo frames (Page refreshes):
 // https://turbo.hotwired.dev/handbook/page_refreshes#turbo-frames
