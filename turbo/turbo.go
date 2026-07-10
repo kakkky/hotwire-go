@@ -83,6 +83,18 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrAutoscrollBehaviorAuto":   func() template.HTMLAttr { return AttrAutoscrollBehaviorAuto().HTMLAttr() },
 		"turboAttrAutoscrollBehaviorSmooth": func() template.HTMLAttr { return AttrAutoscrollBehaviorSmooth().HTMLAttr() },
 		"turboAttrRefreshMorph":             func() template.HTMLAttr { return AttrRefreshMorph().HTMLAttr() },
+		"turboStreamAppend":                 func(target string) template.HTML { return StreamAppend(target).HTMLTag() },
+		"turboStreamPrepend":                func(target string) template.HTML { return StreamPrepend(target).HTMLTag() },
+		"turboStreamReplace":                func(target string) template.HTML { return StreamReplace(target).HTMLTag() },
+		"turboStreamUpdate":                 func(target string) template.HTML { return StreamUpdate(target).HTMLTag() },
+		"turboStreamRemove":                 func(target string) template.HTML { return StreamRemove(target).HTMLTag() },
+		"turboStreamBefore":                 func(target string) template.HTML { return StreamBefore(target).HTMLTag() },
+		"turboStreamAfter":                  func(target string) template.HTML { return StreamAfter(target).HTMLTag() },
+		"turboStreamRefresh":                func() template.HTML { return StreamRefresh().HTMLTag() },
+		"turboStreamEnd":                    func() template.HTML { return StreamAppend("").Close().HTMLTag() },
+		"turboAttrTargets":                  func(selector string) template.HTMLAttr { return AttrTargets(selector).HTMLAttr() },
+		"turboAttrRequestID":                func(id string) template.HTMLAttr { return AttrRequestID(id).HTMLAttr() },
+		"turboAttrMethodMorph":              func() template.HTMLAttr { return AttrMethodMorph().HTMLAttr() },
 	}
 }
 
