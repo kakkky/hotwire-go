@@ -31,15 +31,21 @@ const hotwireTurboStreamSecretEnv = "HOTWIRE_TURBO_STREAM_SECRET"
 var hotwireTurboStreamSecret []byte
 
 func init() {
-	if s := os.Getenv(hotwireTurboStreamSecretEnv); s != "" {
-		hotwireTurboStreamSecret = []byte(s)
-		return
+	hotwireTurboStreamSecret = loadStreamSecret(os.Getenv(hotwireTurboStreamSecretEnv))
+}
+
+// loadStreamSecret returns the HMAC key material for stream tokens.
+// A non-empty fromEnv is used verbatim; otherwise a freshly generated
+// 32-byte random key is returned.
+func loadStreamSecret(fromEnv string) []byte {
+	if fromEnv != "" {
+		return []byte(fromEnv)
 	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		panic("turbo: failed to generate stream secret: " + err.Error())
 	}
-	hotwireTurboStreamSecret = b
+	return b
 }
 
 // streamToken is the in-memory shape of a Turbo Streams subscription
