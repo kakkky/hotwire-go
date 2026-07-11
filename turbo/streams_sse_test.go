@@ -3,10 +3,12 @@ package turbo
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -115,12 +117,19 @@ func TestStreamSSEHandler(t *testing.T) {
 	}
 }
 
-func TestStreamSSEHandler_Error(t *testing.T) {
+// TestStreamSSEHandler_Authorize covers the authorize step: malformed /
+// missing / cross-origin tokens fail with 401, and a matching HTTPS
+// Origin (r.TLS != nil branch) is accepted with 200.
+func TestStreamSSEHandler_Authorize(t *testing.T) {
+	validSigned := signStreamToken("posts:42", defaultStreamTokenTTL)
+
 	tests := []struct {
-		name       string
-		token      string
-		origin     string
-		wantStatus int
+		name              string
+		useHTTPS          bool
+		token             string
+		origin            string
+		useMatchingOrigin bool
+		wantStatus        int
 	}{
 		{
 			name:       "missing token returns 401",
@@ -128,13 +137,36 @@ func TestStreamSSEHandler_Error(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "malformed token returns 401",
+			name:       "malformed token (no dot separator) returns 401",
 			token:      "not-a-real-token",
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:       "malformed token (invalid base64 payload) returns 401",
+			token:      "!!!not-base64!!!." + base64.RawURLEncoding.EncodeToString([]byte("sig")),
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "malformed token (invalid base64 signature) returns 401",
+			token: base64.RawURLEncoding.EncodeToString([]byte("stream\n1")) +
+				".!!!not-base64!!!",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "malformed token (payload missing newline) returns 401",
+			token: base64.RawURLEncoding.EncodeToString([]byte("no-newline-here")) +
+				"." + base64.RawURLEncoding.EncodeToString([]byte("sig")),
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "malformed token (non-numeric expiry) returns 401",
+			token: base64.RawURLEncoding.EncodeToString([]byte("stream\nnot-a-number")) +
+				"." + base64.RawURLEncoding.EncodeToString([]byte("sig")),
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "tampered signature returns 401",
-			token:      signStreamToken("posts:42", defaultStreamTokenTTL) + "A",
+			token:      validSigned[:len(validSigned)-1] + "A",
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -148,11 +180,25 @@ func TestStreamSSEHandler_Error(t *testing.T) {
 			origin:     "https://evil.example.com",
 			wantStatus: http.StatusUnauthorized,
 		},
+		{
+			name:              "matching HTTPS Origin is accepted",
+			useHTTPS:          true,
+			token:             signStreamToken("posts:42", defaultStreamTokenTTL),
+			useMatchingOrigin: true,
+			wantStatus:        http.StatusOK,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := NewStreamBroker()
-			server := httptest.NewServer(StreamSSEHandler(sb))
+			handler := StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour))
+
+			var server *httptest.Server
+			if tt.useHTTPS {
+				server = httptest.NewTLSServer(handler)
+			} else {
+				server = httptest.NewServer(handler)
+			}
 			defer server.Close()
 
 			url := server.URL
@@ -162,7 +208,10 @@ func TestStreamSSEHandler_Error(t *testing.T) {
 
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
 			require.NoError(t, err)
-			if tt.origin != "" {
+			switch {
+			case tt.useMatchingOrigin:
+				req.Header.Set("Origin", server.URL)
+			case tt.origin != "":
 				req.Header.Set("Origin", tt.origin)
 			}
 
@@ -171,6 +220,51 @@ func TestStreamSSEHandler_Error(t *testing.T) {
 			defer resp.Body.Close()
 
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+		})
+	}
+}
+
+// TestStreamSSEHandler_Heartbeat drives the heartbeat.C branch of the
+// handler's select loop deterministically. Inside a testing/synctest
+// bubble the request context's fake-time deadline fires exactly `ticks`
+// heartbeats before the handler exits via r.Context().Done().
+func TestStreamSSEHandler_Heartbeat(t *testing.T) {
+	tests := []struct {
+		name     string
+		interval time.Duration
+		ticks    int
+	}{
+		{
+			name:     "one interval fires one heartbeat comment",
+			interval: time.Second,
+			ticks:    1,
+		},
+		{
+			name:     "three intervals fire three heartbeat comments",
+			interval: time.Second,
+			ticks:    3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				sb := NewStreamBroker()
+
+				// Timeout mid-way between the Nth and (N+1)th tick so
+				// exactly `ticks` heartbeats fire before ctx.Done exits
+				// the handler.
+				timeout := tt.interval*time.Duration(tt.ticks) + tt.interval/2
+				ctx, cancel := context.WithTimeout(t.Context(), timeout)
+				defer cancel()
+
+				token := signStreamToken("posts:42", defaultStreamTokenTTL)
+				req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/turbo_streams_sse?token="+token, nil)
+				w := httptest.NewRecorder()
+
+				StreamSSEHandler(sb, WithHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
+
+				assert.Equal(t, tt.ticks, strings.Count(w.Body.String(), ":\n\n"))
+			})
 		})
 	}
 }
