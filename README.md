@@ -21,8 +21,9 @@ helper API.
   the layout / partial / page convention. templ users do not need it.
 
 hotwire-go does **not** ship the Turbo JavaScript runtime itself
-(`turbo.ScriptImport()` emits a `<script>` tag that loads it from a CDN), is
-**not** a router or web framework, and does **not** target Stimulus.
+(`turbo.ScriptImport()` emits a `<script>` tag that loads it from a CDN) and
+is **not** a router or web framework. Stimulus helpers are tentatively in
+scope (see Roadmap).
 
 ## Installation
 
@@ -148,6 +149,13 @@ and is bumped alongside hotwire-go releases.
 Applications that ship Turbo through their own bundler or import map do not
 need `ScriptImport()` and are free to load any version compatible with the
 helpers they use.
+
+## Roadmap
+
+- **Stimulus helpers** — tentative support for the Stimulus side of Hotwire.
+- **WebSocket transport for Turbo Streams** — alongside the current SSE
+  handler.
+- **Redis broker** — expanded / production-hardened Redis-backed broker.
 
 ## License
 
