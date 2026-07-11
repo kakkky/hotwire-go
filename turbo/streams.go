@@ -1,8 +1,13 @@
 package turbo
 
 import (
+	"bytes"
+	"context"
+	"io"
 	"net/http"
 	"strings"
+
+	"github.com/kakkky/hotwire-go/internal/broker"
 )
 
 // IsStreamRequest reports whether the client accepts a Turbo Streams
@@ -72,6 +77,72 @@ func RequestID(r *http.Request) string {
 // https://github.com/hotwired/turbo/blob/v8.0.23/src/core/streams/stream_message.js#L4
 func StreamHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/vnd.turbo-stream.html; charset=utf-8")
+}
+
+// NewStreamBroker constructs a StreamBroker used to fan Turbo Streams
+// bytes out to subscribers on named streams. Without any Configs the
+// returned broker is backed by an in-process implementation (single Go
+// process, no persistence, no fan-out across replicas); pass
+// WithRedisStreamBroker to route Publish and Subscribe through Redis
+// PUB/SUB instead so multiple processes can share the same stream
+// space:
+//
+//	sb := turbo.NewStreamBroker(turbo.WithRedisStreamBroker(rdb))
+//
+// The broker is safe for concurrent use and is intended to be built
+// once at start-up and shared across handlers: publish sites hand it
+// to Broadcast, and an SSE or WebSocket endpoint hands it to a Turbo
+// Streams subscribe handler on the read side.
+func NewStreamBroker(cfgs ...StreamBrokerConfig) StreamBroker {
+	return broker.New(cfgs...)
+}
+
+// StreamContent is the minimal contract Broadcast accepts as a source
+// of Turbo Streams bytes. Any type whose Render writes a well-formed
+// <turbo-stream> fragment to w satisfies it, including the Elm helpers
+// returned by StreamAppend and friends, a-h/templ components
+// (https://github.com/a-h/templ) that compose those helpers, and the
+// Page and Partial values the sibling view package hands out. A custom
+// application type that writes stream fragments to w also fits.
+//
+// Render is called with the context supplied by Broadcast; the context
+// travels down for cancellation and value propagation, so an
+// implementation that talks to a database or a downstream service to
+// build its bytes should honor it.
+type StreamContent interface {
+	Render(ctx context.Context, w io.Writer) error
+}
+
+// Broadcast renders every content into one in-memory buffer in the
+// given order and publishes the concatenation to stream via sb, so all
+// contents reach subscribers as a single message. Turbo processes
+// every <turbo-stream> action inside a received message together, so
+// grouping related actions (for example updating a list and its
+// counter, or replacing a form together with appending its result)
+// into one Broadcast call keeps their DOM effects visually atomic on
+// the client.
+//
+// If any content's Render returns an error, Broadcast aborts before
+// publishing and returns that error unwrapped; no bytes reach sb on
+// failure, which keeps subscribers from applying a partially
+// constructed message. Callers that need per-content isolation should
+// issue separate Broadcast calls instead of packing everything into
+// one variadic invocation.
+//
+// When len(contents) is zero Broadcast returns nil without touching
+// sb, so callers can pass a dynamically built slice without guarding
+// against the empty case.
+func Broadcast(ctx context.Context, sb StreamBroker, stream string, contents ...StreamContent) error {
+	if len(contents) == 0 {
+		return nil
+	}
+	var buf bytes.Buffer
+	for _, c := range contents {
+		if err := c.Render(ctx, &buf); err != nil {
+			return err
+		}
+	}
+	return sb.Publish(ctx, stream, buf.Bytes())
 }
 
 // StreamAppend builds a <turbo-stream action="append" target="..."> element
