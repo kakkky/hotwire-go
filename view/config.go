@@ -17,11 +17,9 @@ type config struct {
 }
 
 // WithFuncs registers one or more template.FuncMaps that are attached
-// to the layout and every page before parsing. Later maps override
-// earlier ones on key collisions, so callers can pass helper packages
-// in ascending priority (for example
-// view.WithFuncs(turbo.TemplateFuncMap(), stimulus.TemplateFuncMap())
-// makes stimulus helpers win on any shared name).
+// to the layout and every page before parsing. When multiple maps are
+// passed, later maps override earlier ones on key collisions, so
+// callers can compose helper sets in ascending priority.
 //
 // This must be used (not a later Funcs call on the returned templates)
 // whenever the templates reference the helpers, because html/template

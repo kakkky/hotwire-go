@@ -1,11 +1,9 @@
 package view
 
 import (
-	"bytes"
 	"fmt"
 	"html/template"
 	"io/fs"
-	"net/http"
 	"path"
 	"strings"
 )
@@ -20,6 +18,11 @@ const (
 // together with a common layout and shared partials. It is safe for
 // concurrent use once constructed by New, and is intended to be built
 // once at start-up and reused for the lifetime of the process.
+//
+// Renderer itself does not write to a destination: it hands out Page
+// and Partial values via Page and Partial, each of which carries the
+// template name and data and defers rendering until its Render method
+// is called against a writer supplied by the caller.
 type Renderer struct {
 	base           *template.Template
 	pages          map[string]*template.Template
@@ -116,69 +119,4 @@ func New(fsys fs.FS, dir string, cfgs ...Config) (*Renderer, error) {
 		pages:          pages,
 		layoutExecName: path.Base(c.layoutPath) + c.extensionName,
 	}, nil
-}
-
-// Render executes the template registered under page against data and
-// writes the result to w. The layout is used as the entry point of the
-// execution, so any {{define}} blocks provided by the page override the
-// layout's placeholders in the usual html/template way.
-//
-// Before writing the body, Render defaults Content-Type to
-// "text/html; charset=utf-8" (leaving it untouched if the caller has
-// already set one, so headers like Turbo Streams' Content-Type set via
-// turbo.StreamHeader survive) and writes the given HTTP status code.
-// The rendered output is buffered in memory first, so template
-// execution errors are returned without ever writing a partial
-// response. An unknown page returns an error without touching w.
-func (r *Renderer) Render(w http.ResponseWriter, status int, page string, data any) error {
-	t, ok := r.pages[page]
-	if !ok {
-		return fmt.Errorf("view: page %q not found", page)
-	}
-	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, r.layoutExecName, data); err != nil {
-		return fmt.Errorf("view: execute %q: %w", page, err)
-	}
-	if w.Header().Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	}
-	w.WriteHeader(status)
-	_, err := buf.WriteTo(w)
-	return err
-}
-
-// RenderPartial executes a single shared partial against data and
-// writes the result to w without going through the layout. name is any
-// {{define "name"}} declared by a shared partial file (a file whose
-// base name starts with "_") — the same identifier Render resolves
-// when the layout references it via {{template "name" .}} or
-// {{block "name" .}}. {{define}} blocks declared inside a page file
-// are not addressable through this method; put anything that needs to
-// be rendered on its own into a shared partial file.
-//
-// It is intended for Turbo-Frame responses (see turbo.IsFrameRequest):
-// the same {{define}} that supplies a portion of the full page can be
-// returned on its own so Turbo swaps just the matching <turbo-frame>,
-// without paying for the surrounding layout on the wire.
-//
-// Response-writing semantics match Render: Content-Type defaults to
-// "text/html; charset=utf-8" unless the caller has already set one
-// (letting turbo.StreamHeader take effect for Turbo Streams
-// partials), the body is buffered before writing so execution errors
-// do not produce a partial response, and an unknown name returns an
-// error without touching w.
-func (r *Renderer) RenderPartial(w http.ResponseWriter, status int, name string, data any) error {
-	if r.base.Lookup(name) == nil {
-		return fmt.Errorf("view: partial %q not found", name)
-	}
-	var buf bytes.Buffer
-	if err := r.base.ExecuteTemplate(&buf, name, data); err != nil {
-		return fmt.Errorf("view: execute %q: %w", name, err)
-	}
-	if w.Header().Get("Content-Type") == "" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	}
-	w.WriteHeader(status)
-	_, err := buf.WriteTo(w)
-	return err
 }
