@@ -6,9 +6,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kakkky/hotwire-go/internal/broker"
 )
+
+const defaultHeartbeatInterval = 15 * time.Second
+const defaultStreamTokenTTL = 1 * time.Hour
 
 // IsStreamRequest reports whether the client accepts a Turbo Streams
 // response — that is, whether "text/vnd.turbo-stream.html" appears in
