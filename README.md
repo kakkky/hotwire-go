@@ -2,6 +2,7 @@
 
 Server-side helpers for building [Hotwire](https://hotwired.dev) Turbo apps in Go.
 
+[![CI](https://github.com/kakkky/hotwire-go/actions/workflows/ci.yml/badge.svg)](https://github.com/kakkky/hotwire-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/kakkky/hotwire-go.svg)](https://pkg.go.dev/github.com/kakkky/hotwire-go)
 [![Go Version](https://img.shields.io/badge/go-%3E%3D1.25-blue)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
