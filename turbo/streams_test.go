@@ -283,7 +283,7 @@ func TestBroadcast(t *testing.T) {
 			sb := NewStreamBroker()
 			sub, err := sb.Subscribe(t.Context(), "stream")
 			require.NoError(t, err)
-			defer sub.Close()
+			defer func() { _ = sub.Close() }()
 
 			require.NoError(t, Broadcast(t.Context(), sb, "stream", tt.contents...))
 
@@ -337,7 +337,7 @@ func TestBroadcast_Error(t *testing.T) {
 			sb := NewStreamBroker()
 			sub, err := sb.Subscribe(t.Context(), "stream")
 			require.NoError(t, err)
-			defer sub.Close()
+			defer func() { _ = sub.Close() }()
 
 			err = Broadcast(tt.ctxFn(t), sb, "stream", tt.contents...)
 			require.ErrorIs(t, err, tt.wantErr)

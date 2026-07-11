@@ -41,7 +41,7 @@ func TestDefaultBroker_PublishSubscribe(t *testing.T) {
 
 			sub, err := b.Subscribe(t.Context(), tt.subscribe...)
 			require.NoError(t, err)
-			defer sub.Close()
+			defer func() { _ = sub.Close() }()
 
 			require.NoError(t, b.Publish(context.Background(), tt.publishStream, []byte("x")))
 
@@ -74,7 +74,7 @@ func TestDefaultBroker_FanOut(t *testing.T) {
 				s, err := b.Subscribe(t.Context(), "stream")
 				require.NoError(t, err)
 				subs[i] = s
-				defer s.Close()
+				defer func() { _ = s.Close() }()
 			}
 
 			require.NoError(t, b.Publish(context.Background(), "stream", []byte("fan")))
@@ -105,7 +105,7 @@ func TestDefaultBroker_BufferOverflow(t *testing.T) {
 
 			sub, err := b.Subscribe(t.Context(), "stream")
 			require.NoError(t, err)
-			defer sub.Close()
+			defer func() { _ = sub.Close() }()
 
 			for i := range tt.publishCount {
 				require.NoError(t, b.Publish(context.Background(), "stream", []byte{byte(i)}))

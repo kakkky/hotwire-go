@@ -89,7 +89,7 @@ func TestStreamSSEHandler(t *testing.T) {
 
 			resp, err := server.Client().Do(req)
 			require.NoError(t, err)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 			assert.Contains(t, resp.Header.Get("Content-Type"), "text/event-stream")
@@ -165,8 +165,10 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
-			name:       "tampered signature returns 401",
-			token:      validSigned[:len(validSigned)-1] + "A",
+			name: "tampered signature returns 401",
+			// Appending extra base64url chars extends the decoded
+			// signature so it never matches the 32-byte HMAC output.
+			token:      validSigned + "AA",
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -217,7 +219,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 
 			resp, err := server.Client().Do(req)
 			require.NoError(t, err)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})

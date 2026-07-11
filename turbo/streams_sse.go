@@ -137,7 +137,7 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		defer subscription.Close()
+		defer func() { _ = subscription.Close() }()
 
 		h := w.Header()
 		h.Set("Content-Type", "text/event-stream")
