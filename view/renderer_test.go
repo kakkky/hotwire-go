@@ -181,4 +181,3 @@ func TestNew_Error(t *testing.T) {
 		})
 	}
 }
-
