@@ -11,6 +11,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/kakkky/hotwire-go/internal/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +51,7 @@ func TestStreamSourceSSE(t *testing.T) {
 			require.Truef(t, strings.HasPrefix(src, prefix), "src %q must start with %q", src, prefix)
 
 			token := strings.TrimPrefix(src, prefix)
-			decoded, err := verifyStreamToken(token)
+			decoded, err := auth.VerifyToken(token)
 			require.NoError(t, err)
 			assert.Equal(t, tt.stream, decoded)
 		})
@@ -83,7 +84,7 @@ func TestStreamSSEHandler(t *testing.T) {
 			server := httptest.NewServer(StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour)))
 			defer server.Close()
 
-			token := signStreamToken(tt.stream, defaultStreamTokenTTL)
+			token := auth.SignToken(tt.stream, defaultStreamTokenTTL)
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"?token="+token, nil)
 			require.NoError(t, err)
 
@@ -121,7 +122,7 @@ func TestStreamSSEHandler(t *testing.T) {
 // missing / cross-origin tokens fail with 401, and a matching HTTPS
 // Origin (r.TLS != nil branch) is accepted with 200.
 func TestStreamSSEHandler_Authorize(t *testing.T) {
-	validSigned := signStreamToken("posts:42", defaultStreamTokenTTL)
+	validSigned := auth.SignToken("posts:42", defaultStreamTokenTTL)
 
 	tests := []struct {
 		name              string
@@ -173,19 +174,19 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 		},
 		{
 			name:       "expired token returns 401",
-			token:      signStreamToken("posts:42", -time.Hour),
+			token:      auth.SignToken("posts:42", -time.Hour),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "cross-origin request returns 401",
-			token:      signStreamToken("posts:42", defaultStreamTokenTTL),
+			token:      auth.SignToken("posts:42", defaultStreamTokenTTL),
 			origin:     "https://evil.example.com",
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:              "matching HTTPS Origin is accepted",
 			useHTTPS:          true,
-			token:             signStreamToken("posts:42", defaultStreamTokenTTL),
+			token:             auth.SignToken("posts:42", defaultStreamTokenTTL),
 			useMatchingOrigin: true,
 			wantStatus:        http.StatusOK,
 		},
@@ -259,7 +260,7 @@ func TestStreamSSEHandler_Heartbeat(t *testing.T) {
 				ctx, cancel := context.WithTimeout(t.Context(), timeout)
 				defer cancel()
 
-				token := signStreamToken("posts:42", defaultStreamTokenTTL)
+				token := auth.SignToken("posts:42", defaultStreamTokenTTL)
 				req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/turbo_streams_sse?token="+token, nil)
 				w := httptest.NewRecorder()
 
