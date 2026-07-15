@@ -2,6 +2,7 @@ package turbo
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"net/http"
@@ -11,9 +12,49 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/kakkky/hotwire-go/internal/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// extractSSESrcToken pulls the "token" query parameter out of the src
+// attribute of a rendered <turbo-stream-source> tag. StreamSourceSSE
+// resolves its attrs lazily at Render time, so tests must render into
+// a buffer rather than inspect Elm.Attrs directly.
+func extractSSESrcToken(t *testing.T, html string) string {
+	t.Helper()
+	srcPrefix := `src="` + StreamsSSEPath + `?token=`
+	i := strings.Index(html, srcPrefix)
+	require.GreaterOrEqualf(t, i, 0, "src prefix not found in %q", html)
+	rest := html[i+len(srcPrefix):]
+	j := strings.Index(rest, `"`)
+	require.GreaterOrEqual(t, j, 0)
+	return rest[:j]
+}
+
+// signWithSid signs a stream token with the given sid injected into ctx.
+// signStreamToken now fails closed when ctx carries no sid, so tests
+// that want a valid token — bound or intentionally unbound — must
+// exercise the ctx path explicitly.
+func signWithSid(t *testing.T, sid, stream string, ttl time.Duration) string {
+	t.Helper()
+	ctx := context.WithValue(t.Context(), auth.SidContextKey{}, sid)
+	return signStreamToken(ctx, stream, ttl)
+}
+
+// verifyWithCookie builds a minimal *http.Request carrying the given
+// cookie sid so verifyStreamToken can be driven from a unit test
+// without wiring an httptest server. An empty cookieSid omits the
+// cookie entirely, which matches the "no session cookie sent" wire
+// state the SSE handler would see.
+func verifyWithCookie(t *testing.T, token, cookieSid string) (string, error) {
+	t.Helper()
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	if cookieSid != "" {
+		r.AddCookie(&http.Cookie{Name: sessionCookieName, Value: cookieSid})
+	}
+	return verifyStreamToken(r, token)
+}
 
 func TestStreamSourceSSE(t *testing.T) {
 	tests := []struct {
@@ -35,24 +76,70 @@ func TestStreamSourceSSE(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			elm := StreamSourceSSE(tt.stream)
+			e := StreamSourceSSE(tt.stream)
+			assert.Equal(t, Tag("turbo-stream-source"), e.Tag)
 
-			assert.Equal(t, Tag("turbo-stream-source"), elm.Tag)
-			require.Len(t, elm.Attrs, 1)
+			// Render under a ctx that carries a fixed sid and verify
+			// under a matching cookie. verifyStreamToken now requires
+			// the session cookie to be present, so the "no cookie"
+			// path is no longer a valid happy case.
+			const sid = "stream-source-sse-test-sid"
+			ctx := context.WithValue(t.Context(), auth.SidContextKey{}, sid)
 
-			attr := elm.Attrs[0]
-			assert.Equal(t, "src", attr.Key)
+			var buf bytes.Buffer
+			require.NoError(t, e.Render(ctx, &buf))
 
-			src, ok := attr.Value.(string)
-			require.True(t, ok, "src attribute value must be a string")
-
-			prefix := StreamsSSEPath + "?token="
-			require.Truef(t, strings.HasPrefix(src, prefix), "src %q must start with %q", src, prefix)
-
-			token := strings.TrimPrefix(src, prefix)
-			decoded, err := verifyStreamToken(token)
+			token := extractSSESrcToken(t, buf.String())
+			decoded, err := verifyWithCookie(t, token, sid)
 			require.NoError(t, err)
 			assert.Equal(t, tt.stream, decoded)
+		})
+	}
+}
+
+// TestStreamSourceSSE_SidBinding covers the ctx-driven signing path:
+// when the render ctx carries a sid (as it does when StreamsMiddleware
+// is in the request chain), the emitted token verifies only against a
+// caller whose cookie hashes to the same sid claim.
+func TestStreamSourceSSE_SidBinding(t *testing.T) {
+	tests := []struct {
+		name       string
+		sid        string
+		verifyWith string
+		wantErr    bool
+	}{
+		{
+			name:       "matching cookie verifies",
+			sid:        "session-alpha",
+			verifyWith: "session-alpha",
+		},
+		{
+			name:       "different cookie is rejected",
+			sid:        "session-alpha",
+			verifyWith: "session-beta",
+			wantErr:    true,
+		},
+		{
+			name:       "missing cookie against bound token is rejected",
+			sid:        "session-alpha",
+			verifyWith: "",
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.WithValue(t.Context(), auth.SidContextKey{}, tt.sid)
+
+			var buf bytes.Buffer
+			require.NoError(t, StreamSourceSSE("posts:42").Render(ctx, &buf))
+
+			token := extractSSESrcToken(t, buf.String())
+			_, err := verifyWithCookie(t, token, tt.verifyWith)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
@@ -83,9 +170,14 @@ func TestStreamSSEHandler(t *testing.T) {
 			server := httptest.NewServer(StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour)))
 			defer server.Close()
 
-			token := signStreamToken(tt.stream, defaultStreamTokenTTL)
+			// Sign under an explicit sid so the browser side can carry a
+			// matching cookie; use a fixed test value rather than relying
+			// on middleware in the httptest server.
+			const sid = "sse-handler-test-sid"
+			token := signWithSid(t, sid, tt.stream, defaultStreamTokenTTL)
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"?token="+token, nil)
 			require.NoError(t, err)
+			req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: sid})
 
 			resp, err := server.Client().Do(req)
 			require.NoError(t, err)
@@ -121,7 +213,12 @@ func TestStreamSSEHandler(t *testing.T) {
 // missing / cross-origin tokens fail with 401, and a matching HTTPS
 // Origin (r.TLS != nil branch) is accepted with 200.
 func TestStreamSSEHandler_Authorize(t *testing.T) {
-	validSigned := signStreamToken("posts:42", defaultStreamTokenTTL)
+	// Every valid-looking token in this table is bound to authSid so
+	// the success case can supply a matching cookie; failure cases
+	// intentionally skip the cookie so they exercise the "no session
+	// cookie present" branch of verifyStreamToken.
+	const authSid = "authorize-test-sid"
+	validSigned := signWithSid(t, authSid, "posts:42", defaultStreamTokenTTL)
 
 	tests := []struct {
 		name              string
@@ -129,6 +226,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 		token             string
 		origin            string
 		useMatchingOrigin bool
+		cookieSid         string
 		wantStatus        int
 	}{
 		{
@@ -173,20 +271,23 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 		},
 		{
 			name:       "expired token returns 401",
-			token:      signStreamToken("posts:42", -time.Hour),
+			token:      signWithSid(t, authSid, "posts:42", -time.Hour),
+			cookieSid:  authSid,
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "cross-origin request returns 401",
-			token:      signStreamToken("posts:42", defaultStreamTokenTTL),
+			token:      validSigned,
 			origin:     "https://evil.example.com",
+			cookieSid:  authSid,
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:              "matching HTTPS Origin is accepted",
 			useHTTPS:          true,
-			token:             signStreamToken("posts:42", defaultStreamTokenTTL),
+			token:             validSigned,
 			useMatchingOrigin: true,
+			cookieSid:         authSid,
 			wantStatus:        http.StatusOK,
 		},
 	}
@@ -215,6 +316,62 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 				req.Header.Set("Origin", server.URL)
 			case tt.origin != "":
 				req.Header.Set("Origin", tt.origin)
+			}
+			if tt.cookieSid != "" {
+				req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: tt.cookieSid})
+			}
+
+			resp, err := server.Client().Do(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+
+			assert.Equal(t, tt.wantStatus, resp.StatusCode)
+		})
+	}
+}
+
+// TestStreamSSEHandler_Authorize_CookieBinding covers the sid-bound
+// path: authorizeStreamRequest reads the _hotwire_sid cookie and
+// requires the incoming token's sid claim to hash to the same value.
+func TestStreamSSEHandler_Authorize_CookieBinding(t *testing.T) {
+	tests := []struct {
+		name       string
+		signSid    string
+		cookieSid  string
+		wantStatus int
+	}{
+		{
+			name:       "matching cookie is accepted",
+			signSid:    "session-alpha",
+			cookieSid:  "session-alpha",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "different cookie is rejected",
+			signSid:    "session-alpha",
+			cookieSid:  "session-beta",
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "missing cookie against bound token is rejected",
+			signSid:    "session-alpha",
+			cookieSid:  "",
+			wantStatus: http.StatusUnauthorized,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sb := NewStreamBroker()
+			server := httptest.NewServer(StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour)))
+			defer server.Close()
+
+			token := signWithSid(t, tt.signSid, "posts:42", defaultStreamTokenTTL)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"?token="+token, nil)
+			require.NoError(t, err)
+			if tt.cookieSid != "" {
+				req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: tt.cookieSid})
 			}
 
 			resp, err := server.Client().Do(req)
@@ -259,8 +416,10 @@ func TestStreamSSEHandler_Heartbeat(t *testing.T) {
 				ctx, cancel := context.WithTimeout(t.Context(), timeout)
 				defer cancel()
 
-				token := signStreamToken("posts:42", defaultStreamTokenTTL)
+				const sid = "heartbeat-test-sid"
+				token := signWithSid(t, sid, "posts:42", defaultStreamTokenTTL)
 				req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/turbo_streams_sse?token="+token, nil)
+				req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: sid})
 				w := httptest.NewRecorder()
 
 				StreamSSEHandler(sb, WithHeartbeatInterval(tt.interval)).ServeHTTP(w, req)

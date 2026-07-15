@@ -42,6 +42,8 @@ type Elm struct {
 	// Attrs are the attributes rendered on the opening tag. Ignored when
 	// IsClosingTag is true.
 	Attrs attrs.Attrs
+
+	LazyAttrs func() attrs.Attrs
 }
 
 // Close returns a copy of e configured to render as its closing tag.
@@ -59,7 +61,12 @@ func (e Elm) Close() Elm {
 // including any children carried on ctx, so `@Elm(...) { children }`
 // works with the a-h/templ spread syntax. Closing mode emits "</tag>".
 func (e Elm) Render(ctx context.Context, w io.Writer) error {
-	if err := writeOpenTag(ctx, w, e.Tag, e.Attrs, nil); err != nil {
+	a := e.Attrs
+	if e.LazyAttrs != nil {
+		lazy := e.LazyAttrs()
+		a = append(a, lazy...)
+	}
+	if err := writeOpenTag(ctx, w, e.Tag, a, nil); err != nil {
 		return err
 	}
 	if e.InnerTag != "" {
@@ -91,6 +98,11 @@ func (e Elm) Render(ctx context.Context, w io.Writer) error {
 // entry point used by html/template funcmap wrappers (which receive
 // pre-rendered template.HTMLAttr fragments from sibling attr helpers)
 // so the concatenation lives in Elm rather than in the funcmap.
+//
+// When LazyAttrs is set, HTMLTag drives it with context.Background —
+// use HTMLTagCtx from a funcmap wrapper that closes over a
+// request-scoped ctx (see view.Renderer's per-request funcmap
+// mechanism) when a ctx-dependent attribute is required.
 func (e Elm) HTMLTag(extra ...template.HTMLAttr) template.HTML {
 	var buf bytes.Buffer
 	switch e.IsClosingTag {
@@ -101,7 +113,13 @@ func (e Elm) HTMLTag(extra ...template.HTMLAttr) template.HTML {
 		_ = writeCloseTag(&buf, e.Tag)
 	case false:
 		ctx := context.Background()
-		_ = writeOpenTag(ctx, &buf, e.Tag, e.Attrs, extra)
+
+		a := e.Attrs
+		if e.LazyAttrs != nil {
+			lazy := e.LazyAttrs()
+			a = append(a, lazy...)
+		}
+		_ = writeOpenTag(ctx, &buf, e.Tag, a, extra)
 		if e.InnerTag != "" {
 			_ = writeOpenTag(ctx, &buf, e.InnerTag, nil, nil)
 		}

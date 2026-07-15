@@ -2,12 +2,16 @@ package turbo
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
 // StreamsSSEPath is the default URL path served by StreamSSEHandler and
@@ -58,19 +62,21 @@ var StreamsSSEPath = "/turbo_streams_sse"
 // Turbo Handbook — Integration with server-side frameworks:
 // https://turbo.hotwired.dev/handbook/streams#integration-with-server-side-frameworks
 func StreamSourceSSE(stream string) Elm {
-	token := signStreamToken(stream, defaultStreamTokenTTL)
-	q := url.Values{}
-	q.Set("token", token)
-	u := url.URL{
-		Path:     StreamsSSEPath,
-		RawQuery: q.Encode(),
-	}
 	return Elm{
 		Tag: Tag("turbo-stream-source"),
-		Attrs: Attrs{{
-			Key:   "src",
-			Value: u.String(),
-		}},
+		LazyAttrs: func(ctx context.Context) Attrs {
+			token := auth.SignToken(ctx, stream, defaultStreamTokenTTL)
+			q := url.Values{}
+			q.Set("token", token)
+			u := url.URL{
+				Path:     StreamsSSEPath,
+				RawQuery: q.Encode(),
+			}
+			return Attrs{{
+				Key:   "src",
+				Value: u.String(),
+			}}
+		},
 	}
 }
 
@@ -121,7 +127,16 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		cfg(c)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		stream, err := authorizeStreamRequest(r)
+		rawToken := r.URL.Query().Get("token")
+		if err := checkSameOrigin(r); err != nil {
+			slog.Warn("turbo: sse authorize failed",
+				"remote", r.RemoteAddr,
+				"error", err,
+			)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		stream, err := auth.VerifyToken(r, rawToken)
 		if err != nil {
 			slog.Warn("turbo: sse authorize failed",
 				"remote", r.RemoteAddr,
@@ -173,6 +188,24 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 			}
 		}
 	})
+}
+
+func checkSameOrigin(r *http.Request) error {
+	rawToken := r.URL.Query().Get("token")
+	if rawToken == "" {
+		return errors.New("turbo: missing token query parameter")
+	}
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		if origin != scheme+"://"+r.Host {
+			return errors.New("turbo: cross-origin request rejected")
+		}
+	}
+	return nil
 }
 
 // writeEventStreamFormat writes one SSE event to w as an optional

@@ -1,4 +1,4 @@
-package turbo
+package auth
 
 import (
 	"testing"
