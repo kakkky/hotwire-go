@@ -88,7 +88,7 @@ func StreamSourceSSE(stream string) Elm {
 //
 // The handler enforces same-origin via checkSameOrigin and then pulls
 // the target stream out of the signed token in the query string via
-// auth.Verifytoken — a missing, tampered, expired, or cross-origin
+// auth.VerifyToken — a missing, tampered, expired, or cross-origin
 // request is answered with 401 and no subscription is opened. On success it sets the SSE response headers
 // (text/event-stream, no-cache, keep-alive, X-Accel-Buffering: no so
 // nginx does not buffer), flushes them, and enters a select loop that
@@ -131,7 +131,7 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 
 		token := r.URL.Query().Get("token")
 
-		stream, err := auth.Verifytoken(token)
+		stream, err := auth.VerifyToken(token)
 		if err != nil {
 			slog.Error("turbo: SSE token verification failed", "token", token, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)

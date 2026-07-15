@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// loadStreamSecret is tested directly because init runs at package load
+// loadSecret is tested directly because init runs at package load
 // and cannot be re-driven from a public-API test.
 
-func TestLoadStreamSecret_FromEnv(t *testing.T) {
+func TestLoadSecret_FromEnv(t *testing.T) {
 	tests := []struct {
 		name string
 		env  string
@@ -23,12 +23,12 @@ func TestLoadStreamSecret_FromEnv(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, loadStreamSecret(tt.env))
+			assert.Equal(t, tt.want, loadSecret(tt.env))
 		})
 	}
 }
 
-func TestLoadStreamSecret_RandomFallback(t *testing.T) {
+func TestLoadSecret_RandomFallback(t *testing.T) {
 	tests := []struct {
 		name    string
 		wantLen int
@@ -40,8 +40,8 @@ func TestLoadStreamSecret_RandomFallback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			first := loadStreamSecret("")
-			second := loadStreamSecret("")
+			first := loadSecret("")
+			second := loadSecret("")
 
 			assert.Len(t, first, tt.wantLen)
 			assert.Len(t, second, tt.wantLen)

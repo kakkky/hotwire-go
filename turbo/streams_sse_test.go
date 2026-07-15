@@ -51,7 +51,7 @@ func TestStreamSourceSSE(t *testing.T) {
 			require.Truef(t, strings.HasPrefix(src, prefix), "src %q must start with %q", src, prefix)
 
 			token := strings.TrimPrefix(src, prefix)
-			decoded, err := auth.Verifytoken(token)
+			decoded, err := auth.VerifyToken(token)
 			require.NoError(t, err)
 			assert.Equal(t, tt.stream, decoded)
 		})

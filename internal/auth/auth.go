@@ -14,11 +14,11 @@ import (
 )
 
 // hotwireGoSecretEnv names the environment variable that supplies
-// the HMAC key used to sign and verify Turbo Streams subscription tokens.
+// the HMAC key used to sign and verify tokens.
 const hotwireGoSecretEnv = "HOTWIRE_GO_SECRET"
 
 // hotwireGoSecret is the process-wide HMAC key used by
-// signtoken and verifytoken.
+// SignToken and VerifyToken.
 //
 // It is populated by init: HOTWIRE_GO_SECRET when set, otherwise
 // a freshly generated 32-byte random key. The random fallback is only
@@ -30,27 +30,27 @@ const hotwireGoSecretEnv = "HOTWIRE_GO_SECRET"
 var hotwireGoSecret []byte
 
 func init() {
-	hotwireGoSecret = loadStreamSecret(os.Getenv(hotwireGoSecretEnv))
+	hotwireGoSecret = loadSecret(os.Getenv(hotwireGoSecretEnv))
 }
 
-// loadStreamSecret returns the HMAC key material for stream tokens.
-// A non-empty fromEnv is used verbatim; otherwise a freshly generated
-// 32-byte random key is returned.
-func loadStreamSecret(fromEnv string) []byte {
+// loadSecret returns the HMAC key material for tokens. A non-empty
+// fromEnv is used verbatim; otherwise a freshly generated 32-byte
+// random key is returned.
+func loadSecret(fromEnv string) []byte {
 	if fromEnv != "" {
 		return []byte(fromEnv)
 	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		panic("turbo: failed to generate stream secret: " + err.Error())
+		panic("auth: failed to generate secret: " + err.Error())
 	}
 	return b
 }
 
-// Signtoken mints a token that authorizes subscription to the given
-// stream for ttl. The stream name and an absolute expiry are HMAC-SHA256
-// signed with hotwireGoSecret and encoded as a URL-safe string
-// suitable for a query parameter.
+// SignToken mints a token that binds the given payload for ttl. The
+// payload and an absolute expiry are HMAC-SHA256 signed with
+// hotwireGoSecret and encoded as a URL-safe string suitable for a
+// query parameter.
 func SignToken(payload string, ttl time.Duration) string {
 	token := token{
 		payload:   payload,
@@ -63,11 +63,11 @@ func SignToken(payload string, ttl time.Duration) string {
 	return token.encode()
 }
 
-// Verifytoken decodes the encoded form, recomputes the HMAC over the
+// VerifyToken decodes the encoded form, recomputes the HMAC over the
 // original payload, and rejects the token if the signature disagrees or the
 // expiry has passed. The signature comparison uses hmac.Equal to keep it
 // constant-time and immune to timing side channels.
-func Verifytoken(token string) (string, error) {
+func VerifyToken(token string) (string, error) {
 	st, err := decodetoken(token)
 	if err != nil {
 		return "", err
@@ -75,25 +75,26 @@ func Verifytoken(token string) (string, error) {
 	h := hmac.New(sha256.New, hotwireGoSecret)
 	h.Write(st.signingBytes())
 	if !hmac.Equal(st.signature, h.Sum(nil)) {
-		return "", errors.New("turbo: stream token signature mismatch")
+		return "", errors.New("auth: token signature mismatch")
 	}
 	if time.Now().Unix() > st.expiresAt {
-		return "", errors.New("turbo: expired stream token")
+		return "", errors.New("auth: expired token")
 	}
 	return st.payload, nil
 }
 
-// token is the in-memory shape of a Turbo Streams subscription
-// token: the target stream, an absolute expiry in Unix seconds, and the
-// HMAC-SHA256 signature (32 bytes) over the first two fields.
+// token is the in-memory shape of a signed token: the payload, an
+// absolute expiry in Unix seconds, and the HMAC-SHA256 signature
+// (32 bytes) over the first two fields.
 type token struct {
 	payload   string
 	expiresAt int64  // Unix seconds
 	signature []byte // 32 bytes (HMAC-SHA256 output)
 }
 
-// signedPayload returns the exact bytes fed into HMAC — "stream\nexpiresAt"
-// — so signing and verification always hash the identical input.
+// signingBytes returns the exact bytes fed into HMAC —
+// "payload\nexpiresAt" — so signing and verification always hash the
+// identical input.
 func (t token) signingBytes() []byte {
 	return []byte(t.payload + "\n" + strconv.FormatInt(t.expiresAt, 10))
 }
@@ -114,23 +115,23 @@ func (t token) encode() string {
 func decodetoken(s string) (token, error) {
 	payloadPart, sigPart, ok := strings.Cut(s, ".")
 	if !ok {
-		return token{}, errors.New("turbo: malformed stream token")
+		return token{}, errors.New("auth: malformed token")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(payloadPart)
 	if err != nil {
-		return token{}, errors.New("turbo: malformed stream token")
+		return token{}, errors.New("auth: malformed token")
 	}
 	sig, err := base64.RawURLEncoding.DecodeString(sigPart)
 	if err != nil {
-		return token{}, errors.New("turbo: malformed stream token")
+		return token{}, errors.New("auth: malformed token")
 	}
 	payloadBytes, expBytes, ok := bytes.Cut(payload, []byte{'\n'})
 	if !ok {
-		return token{}, errors.New("turbo: malformed stream token")
+		return token{}, errors.New("auth: malformed token")
 	}
 	exp, err := strconv.ParseInt(string(expBytes), 10, 64)
 	if err != nil {
-		return token{}, errors.New("turbo: malformed stream token")
+		return token{}, errors.New("auth: malformed token")
 	}
 	return token{
 		payload:   string(payloadBytes),
