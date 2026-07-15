@@ -2,12 +2,15 @@ package turbo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
 // StreamsSSEPath is the default URL path served by StreamSSEHandler and
@@ -22,7 +25,7 @@ import (
 //
 // The value is a plain path, not a full URL: the browser resolves it
 // against the current origin, which keeps the Origin check in
-// authorizeStreamRequest simple (same-origin fetches only).
+// checkSameOrigin simple (same-origin fetches only).
 var StreamsSSEPath = "/turbo_streams_sse"
 
 // StreamSourceSSE returns Turbo's built-in <turbo-stream-source> custom
@@ -32,7 +35,7 @@ var StreamsSSEPath = "/turbo_streams_sse"
 // Turbo applies every <turbo-stream> fragment the server pushes.
 //
 // The stream name is not sent to the client verbatim: it is embedded in
-// an HMAC-signed, TTL-scoped token (see signStreamToken) and only that
+// an HMAC-signed, TTL-scoped token (see auth.SignToken) and only that
 // token appears in the src query string. StreamSSEHandler decodes the
 // token to learn which broker stream to subscribe to, so a client cannot
 // rewrite the URL to eavesdrop on a stream it was not authorized for.
@@ -58,7 +61,7 @@ var StreamsSSEPath = "/turbo_streams_sse"
 // Turbo Handbook — Integration with server-side frameworks:
 // https://turbo.hotwired.dev/handbook/streams#integration-with-server-side-frameworks
 func StreamSourceSSE(stream string) Elm {
-	token := signStreamToken(stream, defaultStreamTokenTTL)
+	token := auth.SignToken(stream, defaultStreamTokenTTL)
 	q := url.Values{}
 	q.Set("token", token)
 	u := url.URL{
@@ -83,10 +86,10 @@ func StreamSourceSSE(stream string) Elm {
 // or a direct sb.Publish reaches every currently connected subscriber as
 // one SSE message.
 //
-// The handler pulls the target stream out of the signed token in the
-// query string via authorizeStreamRequest — a missing, tampered,
-// expired, or cross-origin request is answered with 401 and no
-// subscription is opened. On success it sets the SSE response headers
+// The handler enforces same-origin via checkSameOrigin and then pulls
+// the target stream out of the signed token in the query string via
+// auth.Verifytoken — a missing, tampered, expired, or cross-origin
+// request is answered with 401 and no subscription is opened. On success it sets the SSE response headers
 // (text/event-stream, no-cache, keep-alive, X-Accel-Buffering: no so
 // nginx does not buffer), flushes them, and enters a select loop that
 // forwards payloads, emits heartbeat comments, and exits when the client
@@ -105,14 +108,13 @@ func StreamSourceSSE(stream string) Elm {
 //	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
 //
 // Deployment note: the tokens minted by StreamSourceSSE are signed with
-// the key held in package-scope by streams_auth.go, which reads
-// HOTWIRE_TURBO_STREAM_SECRET at process start and falls back to a
-// freshly generated random key. That fallback works only for a single
-// process — every replica would sign with its own key, so tokens issued
-// by one node would fail verification on another, and any restart
-// invalidates outstanding tokens. Horizontally scaled deployments must
-// export HOTWIRE_TURBO_STREAM_SECRET with the same value on every
-// process.
+// the key held in package-scope by internal/auth, which reads
+// HOTWIRE_GO_SECRET at process start and falls back to a freshly
+// generated random key. That fallback works only for a single process —
+// every replica would sign with its own key, so tokens issued by one
+// node would fail verification on another, and any restart invalidates
+// outstanding tokens. Horizontally scaled deployments must export
+// HOTWIRE_GO_SECRET with the same value on every process.
 func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 	c := &streamConfigs{
 		heartbeatInterval: defaultHeartbeatInterval,
@@ -121,12 +123,17 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		cfg(c)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		stream, err := authorizeStreamRequest(r)
+		if err := checkSameOrigin(r); err != nil {
+			slog.Error("turbo: SSE request rejected", "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		token := r.URL.Query().Get("token")
+
+		stream, err := auth.Verifytoken(token)
 		if err != nil {
-			slog.Warn("turbo: sse authorize failed",
-				"remote", r.RemoteAddr,
-				"error", err,
-			)
+			slog.Error("turbo: SSE token verification failed", "token", token, "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -199,6 +206,19 @@ func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.D
 
 	if _, err := io.WriteString(w, "\n"); err != nil {
 		return err
+	}
+	return nil
+}
+
+func checkSameOrigin(r *http.Request) error {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		if origin != scheme+"://"+r.Host {
+			return errors.New("turbo: cross-origin request rejected")
+		}
 	}
 	return nil
 }
