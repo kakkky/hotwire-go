@@ -200,15 +200,23 @@ func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.D
 	return nil
 }
 
+// checkSameOrigin rejects the request unless it carries an Origin
+// header that matches r.Host under the request's scheme. A missing
+// Origin is treated as a rejection: modern browsers always send
+// Origin on EventSource requests, so the only clients that omit it
+// are non-browser tools (curl, arbitrary HTTP libraries) that must
+// not bypass the same-origin defense-in-depth guard.
 func checkSameOrigin(r *http.Request) error {
-	if origin := r.Header.Get("Origin"); origin != "" {
-		scheme := "http"
-		if r.TLS != nil {
-			scheme = "https"
-		}
-		if origin != scheme+"://"+r.Host {
-			return errors.New("turbo: cross-origin request rejected")
-		}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return errors.New("turbo: missing Origin header")
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if origin != scheme+"://"+r.Host {
+		return errors.New("turbo: cross-origin request rejected")
 	}
 	return nil
 }
