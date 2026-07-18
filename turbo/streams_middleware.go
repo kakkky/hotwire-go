@@ -5,11 +5,18 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
+	"time"
+
+	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
 // streamsSessionCookieName is the cookie the middleware issues to
 // carry the per-browser Turbo Streams session identifier (sid).
 const streamsSessionCookieName = "turbo-streams-session"
+
+const streamsSessionCookieTTL = 24 * time.Hour
+
+const sidByteLen = 32
 
 // sidCtxKey types the ctx key used to expose the sid to downstream
 // handlers and render-side helpers. Kept unexported so external
@@ -31,18 +38,15 @@ type sidCtxKey struct{}
 func StreamsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sid string
-		if cookie, err := r.Cookie(streamsSessionCookieName); err == nil && cookie.Value != "" {
-			sid = cookie.Value
-		} else {
+		if cookie, err := r.Cookie(streamsSessionCookieName); err == nil {
+			if verifiedSid, err := auth.VerifySid(cookie.Value); err == nil {
+				sid = verifiedSid
+			}
+		}
+		if sid == "" {
 			sid = genSid()
-			http.SetCookie(w, &http.Cookie{
-				Name:     streamsSessionCookieName,
-				Value:    sid,
-				Path:     "/",
-				HttpOnly: true,
-				SameSite: http.SameSiteStrictMode,
-				Secure:   r.TLS != nil,
-			})
+			signedSid := auth.SignSid(sid, streamsSessionCookieTTL)
+			setSidCookie(w, r, signedSid)
 		}
 
 		ctx := context.WithValue(r.Context(), sidCtxKey{}, sid)
@@ -55,9 +59,20 @@ func StreamsMiddleware(next http.Handler) http.Handler {
 // randomness so the identifier is unpredictable to attackers who do
 // not observe the cookie directly.
 func genSid() string {
-	b := make([]byte, 32)
+	b := make([]byte, sidByteLen)
 	if _, err := rand.Read(b); err != nil {
 		panic("turbo: failed to generate stream secret: " + err.Error())
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func setSidCookie(w http.ResponseWriter, r *http.Request, sid string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     streamsSessionCookieName,
+		Value:    sid,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+		Secure:   r.TLS != nil,
+	})
 }
