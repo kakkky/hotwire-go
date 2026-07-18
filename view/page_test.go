@@ -11,17 +11,18 @@ import (
 )
 
 func TestPage_Render(t *testing.T) {
-	r, err := New(testdataFS, "testdata/valid/ok", WithFuncs(testFuncs))
-	require.NoError(t, err)
-
 	tests := []struct {
 		name     string
+		dir      string
+		ctx      context.Context
 		page     string
 		data     map[string]any
 		wantBody string
 	}{
 		{
 			name: "home page rendered through the layout",
+			dir:  "testdata/valid/ok",
+			ctx:  context.Background(),
 			page: "home",
 			data: map[string]any{"Name": "Bob"},
 			wantBody: strings.Join([]string{
@@ -39,6 +40,8 @@ func TestPage_Render(t *testing.T) {
 		},
 		{
 			name: "nested page rendered through the layout",
+			dir:  "testdata/valid/ok",
+			ctx:  context.Background(),
 			page: "sub/page",
 			data: map[string]any{"Name": "Test"},
 			wantBody: strings.Join([]string{
@@ -54,14 +57,25 @@ func TestPage_Render(t *testing.T) {
 				`</html>`,
 			}, "\n") + "\n",
 		},
+		{
+			name:     ".Ctx is exposed to the template",
+			dir:      "testdata/valid/ctx",
+			ctx:      context.Background(),
+			page:     "home",
+			data:     nil,
+			wantBody: "has-ctx",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			r, err := New(testdataFS, tt.dir, WithFuncs(testFuncs))
+			require.NoError(t, err)
 			p := r.Page(tt.page, tt.data)
 			var buf bytes.Buffer
-			err := p.Render(context.Background(), &buf)
+			err = p.Render(tt.ctx, &buf)
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantBody, buf.String())
+			assert.NotContains(t, tt.data, "Ctx", "Render must not mutate caller's data map")
 		})
 	}
 }
