@@ -319,10 +319,61 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			// Origin wins when both headers are present: a mismatched
+			// Origin must reject even if Referer looks same-origin.
+			name: "cross-origin Origin with same-origin Referer returns 401",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
+				r.Header.Set("Origin", "https://evil.example.com")
+				r.Header.Set("Referer", serverURL+"/todos")
+				return r
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			// Browsers omit Origin from a same-origin EventSource GET
+			// (response tainting stays "basic"), so the handler must
+			// accept the request on a matching Referer alone.
+			name: "no Origin with matching Referer is accepted",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
+				r.Header.Set("Referer", serverURL+"/todos")
+				return r
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "no Origin with cross-origin Referer returns 401",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
+				r.Header.Set("Referer", "https://evil.example.com/attack")
+				return r
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "no Origin with malformed Referer returns 401",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
+				r.Header.Set("Referer", "not a url")
+				return r
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			// Non-browser clients (curl, scripted HTTP libraries) can
-			// omit Origin; the handler must not treat its absence as
-			// permission to skip the same-origin check.
-			name: "missing Origin header returns 401",
+			// omit both Origin and Referer; the handler must not treat
+			// their joint absence as permission to skip the same-origin
+			// check.
+			name: "missing Origin and Referer returns 401",
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
 				require.NoError(t, err)
