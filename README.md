@@ -71,7 +71,7 @@ import (
 - `StreamSSEHandler` — ready-to-mount `http.Handler` with configurable
   heartbeat interval
 - `StreamSourceSSE` — signed `<turbo-stream-source>` tag helper
-- HMAC-SHA256 signed, TTL-scoped subscription tokens with same-origin check
+- HMAC-SHA256 signed, TTL-scoped subscription tokens
 - `StreamsMiddleware` — per-browser session cookie whose id is baked
   into each token, so a token leaked to another browser cannot be replayed
 - `Broadcast` — render multiple `StreamContent` values into a single message
