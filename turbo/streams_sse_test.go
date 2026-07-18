@@ -21,6 +21,12 @@ import (
 // request.
 const testSid = "test-session-id"
 
+// signedTestSid is testSid packaged as StreamsMiddleware would put it
+// on the wire: an auth.SignSid value that StreamSSEHandler decodes
+// with auth.VerifySid before comparing to the sid inside the token.
+// Using a fresh long TTL keeps it valid across every test run.
+var signedTestSid = auth.SignSid(testSid, defaultStreamTokenTTL)
+
 func TestStreamSourceSSE(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -94,7 +100,7 @@ func TestStreamSSEHandler(t *testing.T) {
 			token := auth.SignToken(tt.stream, testSid, defaultStreamTokenTTL)
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL+"?token="+token, nil)
 			require.NoError(t, err)
-			req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+			req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 
 			resp, err := server.Client().Do(req)
 			require.NoError(t, err)
@@ -145,7 +151,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				r.Header.Set("Origin", serverURL)
 				return r
 			},
@@ -157,7 +163,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				r.Header.Set("Origin", serverURL)
 				return r
 			},
@@ -168,7 +174,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -178,7 +184,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token=not-a-real-token", nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -189,7 +195,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 				token := "!!!not-base64!!!." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -201,7 +207,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 					".!!!not-base64!!!"
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -213,7 +219,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 					"." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -225,7 +231,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 					"." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -237,7 +243,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 					"." + base64.RawURLEncoding.EncodeToString([]byte("sig"))
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -249,7 +255,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned+"AA", nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -260,7 +266,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 				token := auth.SignToken("posts:42", testSid, -time.Hour)
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+token, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -270,7 +276,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				r.Header.Set("Origin", "https://evil.example.com")
 				return r
 			},
@@ -290,7 +296,30 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 			req: func(t *testing.T, serverURL string) *http.Request {
 				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
 				require.NoError(t, err)
-				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: "different-session-id"})
+				r.AddCookie(&http.Cookie{
+					Name:  streamsSessionCookieName,
+					Value: auth.SignSid("different-session-id", defaultStreamTokenTTL),
+				})
+				return r
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "cookie value that fails signature verification returns 401",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: "not-a-signed-sid"})
+				return r
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "cookie with tampered signature returns 401",
+			req: func(t *testing.T, serverURL string) *http.Request {
+				r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+"?token="+validSigned, nil)
+				require.NoError(t, err)
+				r.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid + "AA"})
 				return r
 			},
 			wantStatus: http.StatusUnauthorized,
@@ -353,7 +382,7 @@ func TestStreamSSEHandler_Heartbeat(t *testing.T) {
 
 				token := auth.SignToken("posts:42", testSid, defaultStreamTokenTTL)
 				req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/turbo_streams_sse?token="+token, nil)
-				req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: testSid})
+				req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				w := httptest.NewRecorder()
 
 				StreamSSEHandler(sb, WithHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
