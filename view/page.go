@@ -27,6 +27,10 @@ type Page struct {
 // "sub/edit.gotmpl" is addressed as "sub/edit"), the same key Renderer
 // registered when New parsed the directory.
 //
+// Templates address entries via the usual dot notation
+// ({{ .Title }}). A nil map is accepted and renders as an empty
+// context.
+//
 // Page is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
 func (r *Renderer) Page(name string, data map[string]any) *Page {

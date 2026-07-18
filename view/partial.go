@@ -29,6 +29,10 @@ type Partial struct {
 // are not addressable through a Partial; put anything that needs to be
 // rendered on its own into a shared partial file.
 //
+// Templates address entries via the usual dot notation
+// ({{ .Title }}). A nil map is accepted and renders as an empty
+// context.
+//
 // Partial is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
 func (r *Renderer) Partial(name string, data map[string]any) *Partial {
