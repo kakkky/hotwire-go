@@ -171,7 +171,7 @@ func TestTemplateFuncMap(t *testing.T) {
 		`{{ turboAttrTargets ".x" }}`,
 		`{{ turboAttrRequestID "r-1" }}`,
 		`{{ turboAttrMethodMorph }}`,
-		`{{ turboStreamSourceSSE "s" }}`,
+		// turboStreamSourceSSE execution is delegated to TestStreamSourceSSE.
 	}, "")
 
 	tests := []struct {
