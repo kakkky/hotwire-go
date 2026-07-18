@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/subtle"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -89,12 +88,6 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		cfg(c)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := checkSameOrigin(r); err != nil {
-			slog.Error("turbo: SSE request rejected", "error", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
 		token := r.URL.Query().Get("token")
 
 		stream, sid, err := auth.VerifyToken(token)
@@ -196,52 +189,6 @@ func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.D
 
 	if _, err := io.WriteString(w, "\n"); err != nil {
 		return err
-	}
-	return nil
-}
-
-// checkSameOrigin rejects the request unless it can prove same-origin
-// via either the Origin or the Referer header. Origin is preferred:
-// browsers set it on every cross-origin fetch and on same-origin
-// non-GET/HEAD requests, so its presence is unambiguous. But browsers
-// omit Origin from same-origin GETs whose response tainting stays
-// "basic" — which is exactly the shape of a <turbo-stream-source>
-// EventSource opening on its own page's origin — so requiring Origin
-// unconditionally rejects the standard deployment.
-//
-// The Referer header covers that gap: browsers attach it (down to the
-// origin at minimum, subject to the page's referrer policy) to
-// same-origin EventSource GETs. Non-browser tooling that omits both
-// headers still hits the "missing headers" rejection, preserving the
-// defense-in-depth intent behind requiring one of them.
-//
-// The OWASP CSRF cheat sheet accepts either header matching the target
-// origin as sufficient for same-origin verification, so honoring
-// whichever the client sent does not weaken the guard.
-func checkSameOrigin(r *http.Request) error {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	expected := scheme + "://" + r.Host
-
-	if origin := r.Header.Get("Origin"); origin != "" {
-		if origin != expected {
-			return errors.New("turbo: cross-origin request rejected")
-		}
-		return nil
-	}
-
-	ref := r.Header.Get("Referer")
-	if ref == "" {
-		return errors.New("turbo: missing Origin and Referer headers")
-	}
-	u, err := url.Parse(ref)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return errors.New("turbo: malformed Referer header")
-	}
-	if u.Scheme+"://"+u.Host != expected {
-		return errors.New("turbo: cross-origin request rejected")
 	}
 	return nil
 }
