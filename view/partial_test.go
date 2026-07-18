@@ -16,7 +16,7 @@ func TestPartial_Render(t *testing.T) {
 	tests := []struct {
 		name    string
 		partial string
-		data    any
+		data    map[string]any
 		want    string
 	}{
 		{
@@ -28,7 +28,7 @@ func TestPartial_Render(t *testing.T) {
 		{
 			name:    "partial receives data",
 			partial: "greet",
-			data:    map[string]string{"Name": "Bob"},
+			data:    map[string]any{"Name": "Bob"},
 			want:    "Hello Bob",
 		},
 		{

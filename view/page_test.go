@@ -17,13 +17,13 @@ func TestPage_Render(t *testing.T) {
 	tests := []struct {
 		name     string
 		page     string
-		data     any
+		data     map[string]any
 		wantBody string
 	}{
 		{
 			name: "home page rendered through the layout",
 			page: "home",
-			data: map[string]string{"Name": "Bob"},
+			data: map[string]any{"Name": "Bob"},
 			wantBody: strings.Join([]string{
 				`<html>`,
 				`  <head>`,
@@ -40,7 +40,7 @@ func TestPage_Render(t *testing.T) {
 		{
 			name: "nested page rendered through the layout",
 			page: "sub/page",
-			data: map[string]string{"Name": "Test"},
+			data: map[string]any{"Name": "Test"},
 			wantBody: strings.Join([]string{
 				`<html>`,
 				`  <head>`,

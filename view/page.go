@@ -18,7 +18,7 @@ import (
 type Page struct {
 	renderer *Renderer
 	name     string
-	data     any
+	data     map[string]any
 }
 
 // Page returns a Page bound to the page template named name, executed
@@ -29,7 +29,7 @@ type Page struct {
 //
 // Page is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
-func (r *Renderer) Page(name string, data any) *Page {
+func (r *Renderer) Page(name string, data map[string]any) *Page {
 	return &Page{renderer: r, name: name, data: data}
 }
 
@@ -43,7 +43,7 @@ func (r *Renderer) Page(name string, data any) *Page {
 // template execution error may leave a partial write on w — a caller
 // that needs an all-or-nothing response should render into an
 // intermediate buffer first.
-func (p *Page) Render(_ context.Context, w io.Writer) error {
+func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	t, ok := p.renderer.pages[p.name]
 	if !ok {
 		return fmt.Errorf("view: page %q not found", p.name)

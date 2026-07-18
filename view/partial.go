@@ -18,7 +18,7 @@ import (
 type Partial struct {
 	renderer *Renderer
 	name     string
-	data     any
+	data     map[string]any
 }
 
 // Partial returns a Partial bound to a shared partial named name and
@@ -31,7 +31,7 @@ type Partial struct {
 //
 // Partial is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
-func (r *Renderer) Partial(name string, data any) *Partial {
+func (r *Renderer) Partial(name string, data map[string]any) *Partial {
 	return &Partial{renderer: r, name: name, data: data}
 }
 
