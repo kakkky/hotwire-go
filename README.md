@@ -72,6 +72,8 @@ import (
   heartbeat interval
 - `StreamSourceSSE` — signed `<turbo-stream-source>` tag helper
 - HMAC-SHA256 signed, TTL-scoped subscription tokens with same-origin check
+- `StreamsMiddleware` — per-browser session cookie whose id is baked
+  into each token, so a token leaked to another browser cannot be replayed
 - `Broadcast` — render multiple `StreamContent` values into a single message
 
 ### Templating
@@ -95,7 +97,7 @@ import (
     {{ turboFrame "posts" }}
         <p>content</p>
     {{ turboFrameEnd }}
-    {{ turboStreamSourceSSE "messages" }}
+    {{ turboStreamSourceSSE .Ctx "messages" }}
 </body>
 ```
 
@@ -110,15 +112,19 @@ a-h/templ:
     @turbo.Frame("posts") {
         <p>content</p>
     }
-    @turbo.StreamSourceSSE("messages")
+    @turbo.StreamSourceSSE(ctx, "messages")
 </body>
 ```
 
-Wiring an SSE broadcaster:
+Wiring an SSE broadcaster — wrap the routes that render pages
+containing `StreamSourceSSE` in `StreamsMiddleware` so the sid the
+helper bakes into each token is available in `ctx`. The SSE endpoint
+reads the cookie directly and does not need the middleware:
 
 ```go
 sb := turbo.NewStreamBroker() // or turbo.NewStreamBroker(turbo.WithRedisStreamBroker(rdb))
 mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
+mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
 
 // later, from any handler / worker:
 _ = turbo.Broadcast(ctx, sb, "messages", streamContent)

@@ -2,6 +2,8 @@ package turbo
 
 import (
 	"bytes"
+	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
@@ -13,55 +15,41 @@ import (
 	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
-// StreamsSSEPath is the default URL path served by StreamSSEHandler and
-// embedded into the src attribute produced by StreamSourceSSE. Applications
-// that need to expose the SSE endpoint at a different path should reassign
-// this variable at start-up — before any handler is mounted and before any
-// layout renders a StreamSourceSSE element — so both the handler and the
-// generated <turbo-stream-source> tags stay in agreement:
+// StreamsSSEPath is the URL path served by StreamSSEHandler and
+// embedded into the src attribute produced by StreamSourceSSE.
+// Applications that expose the SSE endpoint at a different path
+// should reassign this variable at start-up, before any handler is
+// mounted or any StreamSourceSSE renders:
 //
 //	turbo.StreamsSSEPath = "/..."
 //	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-//
-// The value is a plain path, not a full URL: the browser resolves it
-// against the current origin, which keeps the Origin check in
-// checkSameOrigin simple (same-origin fetches only).
 var StreamsSSEPath = "/turbo_streams_sse"
 
-// StreamSourceSSE returns Turbo's built-in <turbo-stream-source> custom
-// element with its src attribute set to StreamsSSEPath and a signed token
-// carrying the given stream name. Dropping the result into a layout
-// subscribes the current page to that stream over Server-Sent Events, and
-// Turbo applies every <turbo-stream> fragment the server pushes.
+// StreamSourceSSE renders a <turbo-stream-source> that subscribes
+// the current page to the named broker stream over SSE. The signed
+// token in its src binds the stream to the caller's session sid, so
+// a leaked token cannot be replayed from another browser.
 //
-// The stream name is not sent to the client verbatim: it is embedded in
-// an HMAC-signed, TTL-scoped token (see auth.SignToken) and only that
-// token appears in the src query string. StreamSSEHandler decodes the
-// token to learn which broker stream to subscribe to, so a client cannot
-// rewrite the URL to eavesdrop on a stream it was not authorized for.
+// ctx must carry a sid installed by StreamsMiddleware; otherwise
+// this function panics.
 //
-// Turbo selects the transport by inspecting the src scheme: ws:// or
-// wss:// URLs open a WebSocket, anything else opens an EventSource. This
-// helper emits a same-origin path (no scheme), which resolves to http(s)
-// and therefore always takes the EventSource / SSE path.
+// Place the element inside <body>: <turbo-stream-source> disconnects
+// when it leaves the document, and Turbo Drive replaces the body on
+// every full-page navigation.
 //
-// Place the element as a child of <body>, not <head>: <turbo-stream-source>
-// disconnects when it leaves the document, and Turbo Drive replaces the
-// body on every full-page navigation — a source mounted in <head> would
-// survive navigation and hold a stale subscription. Register via
-// turbo.TemplateFuncMap and call from templates as:
+// Register via turbo.TemplateFuncMap and call from a template:
 //
-//	{{ turboStreamSourceSSE "..." }}
+//	{{ turboStreamSourceSSE .Ctx "..." }}
 //
-// Alternatively, call it directly from an a-h/templ template
-// (https://github.com/a-h/templ) via the component-call syntax:
+// Or from an a-h/templ template (https://github.com/a-h/templ):
 //
-//	@turbo.StreamSourceSSE("...")
-//
-// Turbo Handbook — Integration with server-side frameworks:
-// https://turbo.hotwired.dev/handbook/streams#integration-with-server-side-frameworks
-func StreamSourceSSE(stream string) Elm {
-	token := auth.SignToken(stream, defaultStreamTokenTTL)
+//	@turbo.StreamSourceSSE(ctx, "...")
+func StreamSourceSSE(ctx context.Context, stream string) Elm {
+	sid, ok := ctx.Value(sidCtxKey{}).(string)
+	if !ok {
+		panic("turbo: StreamSourceSSE requires turbo.StreamsMiddleware in the request pipeline")
+	}
+	token := auth.SignToken(stream, sid, defaultStreamTokenTTL)
 	q := url.Values{}
 	q.Set("token", token)
 	u := url.URL{
@@ -77,44 +65,22 @@ func StreamSourceSSE(stream string) Elm {
 	}
 }
 
-// StreamSSEHandler returns an http.Handler that upgrades the request to a
-// Server-Sent Events response and forwards every payload published to the
-// requested stream on sb straight through to the client. Pair it with
-// StreamSourceSSE on the render side: the layout emits a
-// <turbo-stream-source> pointing at StreamsSSEPath, Turbo opens an
-// EventSource against this handler, and each payload written by Broadcast
-// or a direct sb.Publish reaches every currently connected subscriber as
-// one SSE message.
+// StreamSSEHandler returns the SSE endpoint that pairs with
+// StreamSourceSSE: it accepts the EventSource opened by a
+// <turbo-stream-source>, verifies the request, and forwards every
+// payload Broadcast publishes to the requested stream on sb through
+// to the client. Unauthorized requests return 401 without opening a
+// subscription.
 //
-// The handler enforces same-origin via checkSameOrigin and then pulls
-// the target stream out of the signed token in the query string via
-// auth.VerifyToken — a missing, tampered, expired, or cross-origin
-// request is answered with 401 and no subscription is opened. On success it sets the SSE response headers
-// (text/event-stream, no-cache, keep-alive, X-Accel-Buffering: no so
-// nginx does not buffer), flushes them, and enters a select loop that
-// forwards payloads, emits heartbeat comments, and exits when the client
-// context is canceled. Each payload is written as a single SSE event
-// whose data lines mirror the payload's newline structure, so a
-// multi-<turbo-stream> message stays a single event on the wire.
-//
-// Heartbeat comments (":\n\n") are sent at the interval configured via
-// WithHeartbeatInterval (default 15s) to defeat idle-connection timeouts
-// on reverse proxies and load balancers. Without them, an otherwise
-// quiet stream would look dead to nginx or an ELB and get dropped.
-//
-// Typical wiring:
+// Wire it under StreamsSSEPath. StreamsMiddleware wraps only the
+// page routes; this handler reads the session cookie directly:
 //
 //	sb := turbo.NewStreamBroker()
 //	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
+//	mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
 //
-// Deployment note: the tokens minted by StreamSourceSSE are signed with
-// the key held in package-scope by internal/auth, which reads
-// HOTWIRE_GO_SECRET at process start and falls back to a freshly
-// generated random key. That fallback works only for a single process —
-// every replica would sign with its own key, so tokens issued by one
-// node would fail verification on another, and any restart invalidates
-// outstanding tokens. Horizontally scaled deployments must export
-// HOTWIRE_GO_SECRET with the same value on every process.
+// Heartbeat interval is configurable via WithHeartbeatInterval
+// (default 15s).
 func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 	c := &streamConfigs{
 		heartbeatInterval: defaultHeartbeatInterval,
@@ -131,9 +97,20 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 
 		token := r.URL.Query().Get("token")
 
-		stream, err := auth.VerifyToken(token)
+		stream, sid, err := auth.VerifyToken(token)
 		if err != nil {
 			slog.Error("turbo: SSE token verification failed", "token", token, "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		cookie, err := r.Cookie(streamsSessionCookieName)
+		if err != nil || cookie.Value == "" {
+			slog.Error("turbo: SSE request missing session cookie", "cookie", streamsSessionCookieName)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(sid), []byte(cookie.Value)) != 1 {
+			slog.Error("turbo: SSE session ID mismatch", "token", token)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
