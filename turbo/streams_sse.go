@@ -99,7 +99,7 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 
 		stream, sid, err := auth.VerifyToken(token)
 		if err != nil {
-			slog.Error("turbo: SSE token verification failed", "token", token, "error", err)
+			slog.Error("turbo: SSE token verification failed", "error", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -116,7 +116,7 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 			return
 		}
 		if subtle.ConstantTimeCompare([]byte(sid), []byte(sidFromCookie)) != 1 {
-			slog.Error("turbo: SSE session ID mismatch", "token", token)
+			slog.Error("turbo: SSE session ID mismatch")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
