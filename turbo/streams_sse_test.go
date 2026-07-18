@@ -90,6 +90,32 @@ func TestStreamSSEHandler(t *testing.T) {
 			payload:  []byte("line1\nline2\nline3"),
 			wantData: "line1\nline2\nline3",
 		},
+		{
+			// Bare "\r" ends an SSE field per the HTML spec, so it must
+			// be normalized to "\n" before the payload is written out.
+			// Otherwise a "\r" from user content would let subsequent
+			// bytes be interpreted as new SSE fields.
+			name:     "bare CR is normalized to newline separator",
+			stream:   "chat:room-2",
+			payload:  []byte("line1\rline2"),
+			wantData: "line1\nline2",
+		},
+		{
+			name:     "CRLF is normalized to a single newline separator",
+			stream:   "chat:room-3",
+			payload:  []byte("line1\r\nline2"),
+			wantData: "line1\nline2",
+		},
+		{
+			// A crafted payload aimed at injecting a fresh SSE event via
+			// bare "\r" must land inside one event's data-only lines.
+			// Without normalization the browser would parse "data: injected"
+			// as a new field and "\r\r" as an event terminator.
+			name:     "bare CR does not inject a new SSE event",
+			stream:   "chat:room-4",
+			payload:  []byte("foo\rdata: injected\r\r"),
+			wantData: "foo\ndata: injected\n\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
