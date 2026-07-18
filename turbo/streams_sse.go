@@ -168,6 +168,11 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 // writeEventStreamFormat writes one SSE event to w as an optional
 // "event:" line, an optional "retry:" line, one "data:" line per newline
 // segment of data, and a terminating blank line.
+//
+// Per the HTML Living Standard the SSE parser terminates a field on any
+// of "\n", "\r", or "\r\n". A bare "\r" inside data would let subsequent
+// bytes be interpreted as new SSE fields, so both "\r\n" and bare "\r"
+// are normalized to "\n" before splitting to prevent event injection.
 func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.Duration) error {
 	if event != "" {
 		if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
@@ -181,7 +186,9 @@ func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.D
 		}
 	}
 
-	for _, line := range bytes.Split(data, []byte("\n")) {
+	normalized := bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+	normalized = bytes.ReplaceAll(normalized, []byte("\r"), []byte("\n"))
+	for line := range bytes.SplitSeq(normalized, []byte("\n")) {
 		if _, err := fmt.Fprintf(w, "data: %s\n", line); err != nil {
 			return err
 		}
