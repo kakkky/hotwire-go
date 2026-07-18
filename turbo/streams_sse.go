@@ -109,7 +109,13 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if subtle.ConstantTimeCompare([]byte(sid), []byte(cookie.Value)) != 1 {
+		sidFromCookie, err := auth.VerifySid(cookie.Value)
+		if err != nil {
+			slog.Error("turbo: SSE session cookie verification failed", "error", err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(sid), []byte(sidFromCookie)) != 1 {
 			slog.Error("turbo: SSE session ID mismatch", "token", token)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
