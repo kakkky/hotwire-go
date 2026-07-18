@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 )
 
 // Partial is a lazy handle to a shared partial together with the data
@@ -30,8 +31,9 @@ type Partial struct {
 // rendered on its own into a shared partial file.
 //
 // Templates address entries via the usual dot notation
-// ({{ .Title }}). A nil map is accepted and renders as an empty
-// context.
+// ({{ .Title }}). A nil map is accepted; the template then sees only
+// .Ctx. The key "Ctx" is reserved for Render's ctx injection;
+// caller-provided values under that key are overwritten.
 //
 // Partial is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
@@ -40,17 +42,23 @@ func (r *Renderer) Partial(name string, data map[string]any) *Partial {
 }
 
 // Render executes the underlying partial against its data and writes
-// the result to w. The context parameter is accepted so Partial fits
-// generic Render(ctx, w) writer interfaces; the current implementation
-// does not consult it. An unknown partial name returns an error
-// without writing to w; a template execution error may leave a partial
-// write on w — a caller that needs an all-or-nothing response should
-// render into an intermediate buffer first.
-func (p *Partial) Render(_ context.Context, w io.Writer) error {
+// the result to w.
+//
+// ctx is exposed to the template under the reserved key .Ctx.
+// The caller's data map is not mutated: a fresh copy is built per call.
+//
+// An unknown partial name returns an error without writing to w; a
+// template execution error may leave a partial write on w — a caller
+// that needs an all-or-nothing response should render into an
+// intermediate buffer first.
+func (p *Partial) Render(ctx context.Context, w io.Writer) error {
 	if p.renderer.base.Lookup(p.name) == nil {
 		return fmt.Errorf("view: partial %q not found", p.name)
 	}
-	if err := p.renderer.base.ExecuteTemplate(w, p.name, p.data); err != nil {
+	data := make(map[string]any, len(p.data)+1)
+	maps.Copy(data, p.data)
+	data["Ctx"] = ctx
+	if err := p.renderer.base.ExecuteTemplate(w, p.name, data); err != nil {
 		return fmt.Errorf("view: execute partial %q: %w", p.name, err)
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 )
 
 // Page is a lazy handle to a page template together with the data that
@@ -28,8 +29,9 @@ type Page struct {
 // registered when New parsed the directory.
 //
 // Templates address entries via the usual dot notation
-// ({{ .Title }}). A nil map is accepted and renders as an empty
-// context.
+// ({{ .Title }}). A nil map is accepted; the template then sees only
+// .Ctx. The key "Ctx" is reserved for Render's ctx injection;
+// caller-provided values under that key are overwritten.
 //
 // Page is inert: an unknown name is only reported as an error when
 // Render is actually called, not at construction time.
@@ -41,8 +43,9 @@ func (r *Renderer) Page(name string, data map[string]any) *Page {
 // writes the result to w. Any {{define}} blocks provided by the page
 // override the layout's placeholders in the usual html/template way.
 //
-// The context parameter is accepted so Page fits generic Render(ctx, w)
-// writer interfaces; the current implementation does not consult it.
+// ctx is exposed to the template under the reserved key .Ctx.
+// The caller's data map is not mutated: a fresh copy is built per call.
+//
 // An unknown page name returns an error without writing to w; a
 // template execution error may leave a partial write on w — a caller
 // that needs an all-or-nothing response should render into an
@@ -52,7 +55,10 @@ func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	if !ok {
 		return fmt.Errorf("view: page %q not found", p.name)
 	}
-	if err := t.ExecuteTemplate(w, p.renderer.layoutExecName, p.data); err != nil {
+	data := make(map[string]any, len(p.data)+1)
+	maps.Copy(data, p.data)
+	data["Ctx"] = ctx
+	if err := t.ExecuteTemplate(w, p.renderer.layoutExecName, data); err != nil {
 		return fmt.Errorf("view: execute page %q: %w", p.name, err)
 	}
 	return nil
