@@ -9,28 +9,22 @@ import (
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name    string
-		cfgs    []Config
-		wantNil bool
+		name string
+		cfgs []Config
 	}{
 		{
 			name: "no config returns default (in-process) broker",
 			cfgs: nil,
 		},
 		{
-			name:    "WithRedis picks the redis case (currently unimplemented, broker is nil)",
-			cfgs:    []Config{WithRedis(redis.NewClient(&redis.Options{Addr: "localhost:0"}))},
-			wantNil: true,
+			name: "WithRedis returns a redis-backed broker",
+			cfgs: []Config{WithRedis(redis.NewClient(&redis.Options{Addr: "localhost:0"}))},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := New(tt.cfgs...)
-			if tt.wantNil {
-				assert.Nil(t, b)
-			} else {
-				assert.NotNil(t, b)
-			}
+			assert.NotNil(t, b)
 		})
 	}
 }
