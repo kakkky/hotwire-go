@@ -42,6 +42,7 @@ func (b *redisBroker) Subscribe(ctx context.Context, streams ...string) (*Subscr
 	}
 	stopCtxWatch := context.AfterFunc(ctx, unsubscribe)
 
+	// Daemon goroutine: runs until ps is closed (via sub.Close() or ctx cancel).
 	go func() {
 		for msg := range ps.Channel() {
 			select {
