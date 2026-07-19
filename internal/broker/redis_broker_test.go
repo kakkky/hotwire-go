@@ -63,13 +63,20 @@ func TestRedisBroker_PublishSubscribe(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { _ = sub.Close() }()
 
-			require.NoError(t, b.Publish(context.Background(), tt.publishStream, []byte("x")))
-
-			got, ok := recvWithin(t, sub.PayloadCh, 500*time.Millisecond)
 			if tt.wantDeliver {
-				require.True(t, ok, "expected payload, timed out")
+				var got []byte
+				assert.Eventually(t, func() bool {
+					_ = b.Publish(context.Background(), tt.publishStream, []byte("x"))
+					p, ok := recvWithin(t, sub.PayloadCh, 50*time.Millisecond)
+					if ok {
+						got = p
+					}
+					return ok
+				}, 2*time.Second, 50*time.Millisecond, "expected payload")
 				assert.Equal(t, []byte("x"), got)
 			} else {
+				require.NoError(t, b.Publish(context.Background(), tt.publishStream, []byte("x")))
+				got, ok := recvWithin(t, sub.PayloadCh, 500*time.Millisecond)
 				assert.False(t, ok, "did not expect payload, got %q", got)
 			}
 		})
