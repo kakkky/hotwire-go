@@ -78,9 +78,9 @@ func TestRedisBroker_PublishSubscribe(t *testing.T) {
 
 func TestRedisBroker_Subscribe_Error(t *testing.T) {
 	tests := []struct {
-		name      string
-		brokerFn  func(t *testing.T) *redisBroker
-		streams   []string
+		name     string
+		brokerFn func(t *testing.T) *redisBroker
+		streams  []string
 	}{
 		{
 			name:     "no streams returns error",
