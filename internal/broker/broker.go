@@ -65,7 +65,7 @@ func New(cfgs ...Config) Broker {
 	var broker Broker
 	switch {
 	case c.redisClient != nil:
-
+		broker = newRedisBroker(c.redisClient)
 	default:
 		broker = newDefaultBroker()
 	}
