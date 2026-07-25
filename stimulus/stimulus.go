@@ -96,3 +96,30 @@ func ScriptLoad(controllerPaths ...string) Tag {
 	}
 	return Tag(b.String())
 }
+
+// AttrControllers renders data-controller="{id1} {id2} ..." on any
+// element.
+//
+// Stimulus scans the DOM for this attribute and instantiates each named
+// controller with the element as its scope. Multiple space-separated
+// identifiers attach multiple controllers to the same element, and the
+// same controller may appear on any number of elements. Identifiers
+// must match those registered by ScriptLoad (or Application.register).
+//
+// Each identifier is HTML-escaped before insertion; pass plain
+// identifier strings.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...", "...")... }>...</div>
+//
+// Stimulus Reference — Controllers:
+// https://stimulus.hotwired.dev/reference/controllers
+func AttrControllers(identifiers ...string) Attrs {
+	return Attrs{{Key: "data-controller", Value: strings.Join(identifiers, " ")}}
+}

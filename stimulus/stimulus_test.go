@@ -109,3 +109,32 @@ func TestScriptLoad(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrControllers(t *testing.T) {
+	tests := []struct {
+		name        string
+		identifiers []string
+		want        Attrs
+	}{
+		{
+			name:        "no identifiers renders an empty data-controller value",
+			identifiers: nil,
+			want:        Attrs{{Key: "data-controller", Value: ""}},
+		},
+		{
+			name:        "single identifier",
+			identifiers: []string{"hello"},
+			want:        Attrs{{Key: "data-controller", Value: "hello"}},
+		},
+		{
+			name:        "multiple identifiers are space-joined in order",
+			identifiers: []string{"hello", "clipboard"},
+			want:        Attrs{{Key: "data-controller", Value: "hello clipboard"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrControllers(tt.identifiers...))
+		})
+	}
+}
