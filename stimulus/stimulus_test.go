@@ -138,3 +138,91 @@ func TestAttrControllers(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrAction(t *testing.T) {
+	tests := []struct {
+		name        string
+		descriptors []string
+		want        Attrs
+	}{
+		{
+			name:        "no descriptors renders an empty data-action value",
+			descriptors: nil,
+			want:        Attrs{{Key: "data-action", Value: ""}},
+		},
+		{
+			name:        "single descriptor",
+			descriptors: []string{"click->gallery#next"},
+			want:        Attrs{{Key: "data-action", Value: "click->gallery#next"}},
+		},
+		{
+			name:        "multiple descriptors are space-joined in order",
+			descriptors: []string{"focus->field#highlight", "input->search#update"},
+			want:        Attrs{{Key: "data-action", Value: "focus->field#highlight input->search#update"}},
+		},
+		{
+			name:        "KeyboardEvent filter is passed through verbatim",
+			descriptors: []string{"keydown.esc->modal#close"},
+			want:        Attrs{{Key: "data-action", Value: "keydown.esc->modal#close"}},
+		},
+		{
+			name:        "global target @window is passed through verbatim",
+			descriptors: []string{"resize@window->gallery#layout"},
+			want:        Attrs{{Key: "data-action", Value: "resize@window->gallery#layout"}},
+		},
+		{
+			name:        "action option on method is passed through verbatim",
+			descriptors: []string{"scroll->gallery#layout:!passive"},
+			want:        Attrs{{Key: "data-action", Value: "scroll->gallery#layout:!passive"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrAction(tt.descriptors...))
+		})
+	}
+}
+
+func TestAttrActionParam(t *testing.T) {
+	tests := []struct {
+		name       string
+		controller string
+		paramName  string
+		paramValue string
+		want       Attrs
+	}{
+		{
+			name:       "number-like value",
+			controller: "item",
+			paramName:  "id",
+			paramValue: "12345",
+			want:       Attrs{{Key: "data-item-id-param", Value: "12345"}},
+		},
+		{
+			name:       "string value",
+			controller: "item",
+			paramName:  "url",
+			paramValue: "/votes",
+			want:       Attrs{{Key: "data-item-url-param", Value: "/votes"}},
+		},
+		{
+			name:       "object value as JSON string",
+			controller: "item",
+			paramName:  "payload",
+			paramValue: `{"value":"1234567"}`,
+			want:       Attrs{{Key: "data-item-payload-param", Value: `{"value":"1234567"}`}},
+		},
+		{
+			name:       "boolean-like value",
+			controller: "item",
+			paramName:  "active",
+			paramValue: "true",
+			want:       Attrs{{Key: "data-item-active-param", Value: "true"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrActionParam(tt.controller, tt.paramName, tt.paramValue))
+		})
+	}
+}
