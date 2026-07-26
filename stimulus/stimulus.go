@@ -125,7 +125,7 @@ func AttrControllers(identifiers ...string) Attrs {
 	return Attrs{{Key: "data-controller", Value: strings.Join(identifiers, " ")}}
 }
 
-// AttrAction renders data-action="{d1} {d2} ..." on any element,
+// AttrActions renders data-action="{d1} {d2} ..." on any element,
 // where each di is a Stimulus action descriptor.
 //
 // A descriptor has the form event->controller#method:
@@ -178,18 +178,18 @@ func AttrControllers(identifiers ...string) Attrs {
 //
 // Register via stimulus.TemplateFuncMap and call from templates as:
 //
-//	<button {{ stimulusAttrAction "..." }}>...</button>
-//	<button {{ stimulusAttrAction "..." "..." }}>...</button>
+//	<button {{ stimulusAttrActions "..." }}>...</button>
+//	<button {{ stimulusAttrActions "..." "..." }}>...</button>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
 //
-//	<button { stimulus.AttrAction("...")... }>...</button>
-//	<button { stimulus.AttrAction("...", "...")... }>...</button>
+//	<button { stimulus.AttrActions("...")... }>...</button>
+//	<button { stimulus.AttrActions("...", "...")... }>...</button>
 //
 // Stimulus Reference — Actions:
 // https://stimulus.hotwired.dev/reference/actions
-func AttrAction(descriptors ...string) Attrs {
+func AttrActions(descriptors ...string) Attrs {
 	return Attrs{{Key: "data-action", Value: strings.Join(descriptors, " ")}}
 }
 
@@ -205,13 +205,13 @@ func AttrAction(descriptors ...string) Attrs {
 //
 // Register via stimulus.TemplateFuncMap and call from templates as:
 //
-//	<button {{ stimulusAttrAction "..." }}
+//	<button {{ stimulusAttrActions "..." }}
 //	        {{ stimulusAttrActionParam "..." "..." "..." }}>...</button>
 //
 // Alternatively, call it directly from an a-h/templ template
 // (https://github.com/a-h/templ) using the spread attributes syntax:
 //
-//	<button { stimulus.AttrAction("...")... }
+//	<button { stimulus.AttrActions("...")... }
 //	        { stimulus.AttrActionParam("...", "...", "...")... }>...</button>
 //
 // Stimulus Reference — Action Parameters:

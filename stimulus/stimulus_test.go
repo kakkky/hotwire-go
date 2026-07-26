@@ -139,7 +139,7 @@ func TestAttrControllers(t *testing.T) {
 	}
 }
 
-func TestAttrAction(t *testing.T) {
+func TestAttrActions(t *testing.T) {
 	tests := []struct {
 		name        string
 		descriptors []string
@@ -178,7 +178,7 @@ func TestAttrAction(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, AttrAction(tt.descriptors...))
+			assert.Equal(t, tt.want, AttrActions(tt.descriptors...))
 		})
 	}
 }
