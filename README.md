@@ -172,7 +172,6 @@ with the helpers they use.
 
 - **WebSocket transport for Turbo Streams** — alongside the current SSE
   handler.
-- **Redis broker** — expanded / production-hardened Redis-backed broker.
 
 ## License
 
