@@ -48,6 +48,9 @@ func TemplateFuncMap() template.FuncMap {
 		"stimulusAttrValue": func(controller, valueName, value string) template.HTMLAttr {
 			return AttrValue(controller, valueName, value).HTMLAttr()
 		},
+		"stimulusAttrOutlet": func(controller, outletName, selector string) template.HTMLAttr {
+			return AttrOutlet(controller, outletName, selector).HTMLAttr()
+		},
 	}
 }
 
@@ -343,4 +346,39 @@ func AttrTargets(controller string, targetNames ...string) Attrs {
 // https://stimulus.hotwired.dev/reference/values
 func AttrValue(controller, valueName, value string) Attrs {
 	return Attrs{{Key: fmt.Sprintf("data-%s-%s-value", controller, valueName), Value: value}}
+}
+
+// AttrOutlet renders data-{controller}-{outletName}-outlet="{selector}"
+// on the host controller's element (the element that carries
+// data-controller="{controller}"). It wires the host to instances of
+// another Stimulus controller referenced by CSS selector, so the host
+// can call their methods via this.[outletName]Outlet(s) and read
+// their elements via this.[outletName]OutletElement(s).
+//
+// outletName must be the identifier of the target controller (the
+// name it was registered with by ScriptLoad or
+// Application.register) — typically kebab-case, for example
+// "user-status". Every element the selector matches must also carry
+// data-controller="{outletName}"; otherwise Stimulus throws at
+// connect time.
+//
+// selector is a plain CSS selector and may point to elements anywhere
+// on the page — unlike targets, outlets are not restricted to the
+// host controller's scope.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrOutlet "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrOutlet("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — Outlets:
+// https://stimulus.hotwired.dev/reference/outlets
+func AttrOutlet(controller, outletName, selector string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-outlet", controller, outletName), Value: selector}}
 }

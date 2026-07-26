@@ -310,3 +310,40 @@ func TestAttrValue(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrOutlet(t *testing.T) {
+	tests := []struct {
+		name       string
+		controller string
+		outletName string
+		selector   string
+		want       Attrs
+	}{
+		{
+			name:       "class selector",
+			controller: "chat",
+			outletName: "user-status",
+			selector:   ".online-user",
+			want:       Attrs{{Key: "data-chat-user-status-outlet", Value: ".online-user"}},
+		},
+		{
+			name:       "id selector",
+			controller: "chat",
+			outletName: "modal",
+			selector:   "#confirm-modal",
+			want:       Attrs{{Key: "data-chat-modal-outlet", Value: "#confirm-modal"}},
+		},
+		{
+			name:       "compound selector is embedded verbatim",
+			controller: "chat",
+			outletName: "user-status",
+			selector:   ".online-user.active",
+			want:       Attrs{{Key: "data-chat-user-status-outlet", Value: ".online-user.active"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrOutlet(tt.controller, tt.outletName, tt.selector))
+		})
+	}
+}
