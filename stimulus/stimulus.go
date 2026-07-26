@@ -27,12 +27,15 @@ const scriptImportMapHTML = `<script type="importmap">
 var scriptModuleHTMLTmpl = template.Must(template.New("module").Parse(
 	`<script type="module">
   import { Application } from "@hotwired/stimulus"
-{{- range . }}
+{{- range .Controllers }}
   import {{ .VarName }} from "{{ .URL }}"
 {{- end }}
 
   window.Stimulus = Application.start()
-{{- range . }}
+{{- if .Debug }}
+  Stimulus.debug = true
+{{- end }}
+{{- range .Controllers }}
   Stimulus.register("{{ .Identifier }}", {{ .VarName }})
 {{- end }}
 </script>`))
@@ -43,6 +46,27 @@ type controllerEntry struct {
 	Identifier string
 }
 
+type scriptData struct {
+	Debug       bool
+	Controllers []controllerEntry
+}
+
+// Debug toggles Stimulus.debug on the runtime emitted by ScriptLoad.
+// When true, ScriptLoad's module script adds Stimulus.debug = true
+// right after Application.start(), which makes Stimulus log every
+// controller lifecycle event (connect/disconnect, target changes,
+// action invocations) to the browser console — useful during
+// development, noisy in production.
+//
+// Set it once at process start (typically from main), before any
+// template that calls ScriptLoad renders. The flag is read at render
+// time, so later assignment affects subsequent renders but not pages
+// already sent to the client.
+//
+// Stimulus Handbook — Installing (Debugging):
+// https://stimulus.hotwired.dev/handbook/installing#debugging
+var Debug bool
+
 // ScriptLoad renders the pair of <script> tags that boot Stimulus: an
 // importmap pinning @hotwired/stimulus to the jsDelivr build, and a module
 // script that imports Application and each controller in controllerPaths,
@@ -52,6 +76,9 @@ type controllerEntry struct {
 // The controller path's basename drives naming: hello_controller.js becomes
 // binding HelloController and identifier hello (trailing "_controller" is
 // stripped, remaining underscores become dashes).
+//
+// Set the package-level Debug to true before rendering to make the
+// emitted module script also enable Stimulus.debug — see [Debug].
 //
 // Register via stimulus.TemplateFuncMap and call from templates as:
 //
@@ -92,7 +119,7 @@ func ScriptLoad(controllerPaths ...string) Tag {
 	var b strings.Builder
 	b.WriteString(scriptImportMapHTML)
 	b.WriteByte('\n')
-	if err := scriptModuleHTMLTmpl.Execute(&b, entries); err != nil {
+	if err := scriptModuleHTMLTmpl.Execute(&b, scriptData{Debug: Debug, Controllers: entries}); err != nil {
 		panic(err)
 	}
 	return Tag(b.String())
