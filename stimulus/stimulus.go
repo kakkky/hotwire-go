@@ -1,0 +1,421 @@
+package stimulus
+
+import (
+	"fmt"
+	"html/template"
+	"path"
+	"strings"
+	texttmpl "text/template"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+)
+
+// TemplateFuncMap returns an html/template.FuncMap containing every Stimulus
+// template helper provided by this package. It must be registered before
+// parsing any file that references the helpers, because html/template
+// resolves function names at parse time. When using the sibling view
+// package, pass the result to view.WithFuncs so it is attached to the
+// layout and every page before parsing:
+//
+//	r, err := view.New(fsys, "views", view.WithFuncs(stimulus.TemplateFuncMap()))
+//
+// When driving html/template directly, call Funcs on the base template
+// before ParseFiles / ParseFS:
+//
+//	tmpl := template.New("").Funcs(stimulus.TemplateFuncMap()).ParseFiles(...)
+//
+// Helpers are registered under names prefixed with stimulus (for example
+// stimulusScriptLoad). See each helper's godoc for its purpose, arguments,
+// and template call form.
+func TemplateFuncMap() template.FuncMap {
+	return template.FuncMap{
+		"stimulusScriptLoad": func(controllerPaths ...string) template.HTML {
+			return ScriptLoad(controllerPaths...).HTMLTag()
+		},
+		"stimulusAttrControllers": func(identifiers ...string) template.HTMLAttr {
+			return AttrControllers(identifiers...).HTMLAttr()
+		},
+		"stimulusAttrActions": func(descriptors ...string) template.HTMLAttr {
+			return AttrActions(descriptors...).HTMLAttr()
+		},
+		"stimulusAttrActionParam": func(controller, paramName, paramValue string) template.HTMLAttr {
+			return AttrActionParam(controller, paramName, paramValue).HTMLAttr()
+		},
+		"stimulusAttrTargets": func(controller string, targetNames ...string) template.HTMLAttr {
+			return AttrTargets(controller, targetNames...).HTMLAttr()
+		},
+		"stimulusAttrValue": func(controller, valueName, value string) template.HTMLAttr {
+			return AttrValue(controller, valueName, value).HTMLAttr()
+		},
+		"stimulusAttrOutlet": func(controller, outletName, selector string) template.HTMLAttr {
+			return AttrOutlet(controller, outletName, selector).HTMLAttr()
+		},
+		"stimulusAttrClass": func(controller, className, cssClass string) template.HTMLAttr {
+			return AttrClass(controller, className, cssClass).HTMLAttr()
+		},
+	}
+}
+
+const stimulusVersion = "3.2.2"
+
+const scriptImportMapHTML = `<script type="importmap">
+{
+  "imports": {
+    "@hotwired/stimulus": "https://cdn.jsdelivr.net/npm/@hotwired/stimulus@` + stimulusVersion + `/dist/stimulus.js"
+  }
+}
+</script>`
+
+var scriptModuleHTMLTmpl = texttmpl.Must(texttmpl.New("module").Parse(
+	`<script type="module">
+  import { Application } from "@hotwired/stimulus"
+{{- range .Controllers }}
+  import {{ .VarName }} from "{{ .URL }}"
+{{- end }}
+
+  window.Stimulus = Application.start()
+{{- if .Debug }}
+  Stimulus.debug = true
+{{- end }}
+{{- range .Controllers }}
+  Stimulus.register("{{ .Identifier }}", {{ .VarName }})
+{{- end }}
+</script>`))
+
+type controllerEntry struct {
+	URL        string
+	VarName    string
+	Identifier string
+}
+
+type scriptData struct {
+	Debug       bool
+	Controllers []controllerEntry
+}
+
+// Debug toggles Stimulus.debug on the runtime emitted by ScriptLoad.
+// When true, ScriptLoad's module script adds Stimulus.debug = true
+// right after Application.start(), which makes Stimulus log every
+// controller lifecycle event (connect/disconnect, target changes,
+// action invocations) to the browser console — useful during
+// development, noisy in production.
+//
+// Set it once at process start (typically from main), before any
+// template that calls ScriptLoad renders. The flag is read at render
+// time, so later assignment affects subsequent renders but not pages
+// already sent to the client.
+//
+// Stimulus Handbook — Installing (Debugging):
+// https://stimulus.hotwired.dev/handbook/installing#debugging
+var Debug bool
+
+// ScriptLoad renders the pair of <script> tags that boot Stimulus: an
+// importmap pinning @hotwired/stimulus to the jsDelivr build, and a module
+// script that imports Application and each controller in controllerPaths,
+// then calls Application.start() and app.register(...). It must be placed
+// inside <head>.
+//
+// The controller path's basename drives naming: hello_controller.js becomes
+// binding HelloController and identifier hello (trailing "_controller" is
+// stripped, remaining underscores become dashes).
+//
+// Set the package-level Debug to true before rendering to make the
+// emitted module script also enable Stimulus.debug — see [Debug].
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	{{ stimulusScriptLoad "..." "..." }}
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the component syntax:
+//
+//	@stimulus.ScriptLoad("...", "...")
+//
+// Stimulus Handbook — Installing Stimulus for Development:
+// https://stimulus.hotwired.dev/handbook/installing
+func ScriptLoad(controllerPaths ...string) Tag {
+	titler := cases.Title(language.English)
+
+	entries := make([]controllerEntry, 0, len(controllerPaths))
+	for _, c := range controllerPaths {
+		base := path.Base(c)
+		snakeCaseName := strings.TrimSuffix(base, path.Ext(base))
+
+		varParts := strings.Split(snakeCaseName, "_")
+		for i, vp := range varParts {
+			if vp == "" {
+				continue
+			}
+			varParts[i] = titler.String(vp)
+		}
+		varName := strings.Join(varParts, "")
+
+		identifier := strings.ReplaceAll(strings.TrimSuffix(snakeCaseName, "_controller"), "_", "-")
+		entries = append(entries, controllerEntry{
+			URL:        c,
+			VarName:    varName,
+			Identifier: identifier,
+		})
+	}
+
+	var b strings.Builder
+	b.WriteString(scriptImportMapHTML)
+	b.WriteByte('\n')
+	if err := scriptModuleHTMLTmpl.Execute(&b, scriptData{Debug: Debug, Controllers: entries}); err != nil {
+		panic(err)
+	}
+	return Tag(b.String())
+}
+
+// AttrControllers renders data-controller="{id1} {id2} ..." on any
+// element.
+//
+// Stimulus scans the DOM for this attribute and instantiates each named
+// controller with the element as its scope. Multiple space-separated
+// identifiers attach multiple controllers to the same element, and the
+// same controller may appear on any number of elements. Identifiers
+// must match those registered by ScriptLoad (or Application.register).
+//
+// Each identifier is HTML-escaped before insertion; pass plain
+// identifier strings.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...", "...")... }>...</div>
+//
+// Stimulus Reference — Controllers:
+// https://stimulus.hotwired.dev/reference/controllers
+func AttrControllers(identifiers ...string) Attrs {
+	return Attrs{{Key: "data-controller", Value: strings.Join(identifiers, " ")}}
+}
+
+// AttrActions renders data-action="{d1} {d2} ..." on any element,
+// where each di is a Stimulus action descriptor.
+//
+// A descriptor has the form event->controller#method:
+//
+//   - event: DOM event name (for example click, submit, input, change,
+//     focus, blur, keydown, keyup, scroll).
+//   - controller: Stimulus identifier registered via ScriptLoad (or
+//     Application.register).
+//   - method: controller method to call, camelCase.
+//
+// # KeyboardEvent filter
+//
+// For keyboard events, append a filter to the event name with a dot
+// (for example keydown.esc, keydown.ctrl+a). The method fires only
+// when the matching key (or combination) is pressed.
+//
+// Supported filters: enter, tab, esc, space, up, down, left, right,
+// home, end, page_up, page_down, [a-z], [0-9].
+//
+// Supported modifiers: alt (option on macOS), ctrl, meta (Command on
+// macOS), shift. Combine with + (for example keydown.ctrl+a).
+//
+// # Global events
+//
+// Append @window or @document to the event name to listen on window
+// or document instead of the element itself (for example
+// resize@window, visibilitychange@document).
+//
+// # Action options
+//
+// Append options to the method with a colon (for example
+// scroll->foo#layout:!passive). DOM listener options:
+//
+//   - :capture   → { capture: true }
+//   - :once      → { once: true }
+//   - :passive   → { passive: true }
+//   - :!passive  → { passive: false }
+//
+// Stimulus-specific options:
+//
+//   - :stop     call stopPropagation() before the method
+//   - :prevent  call preventDefault() before the method
+//   - :self     fire only when the event target is the element itself
+//
+// # Multiple descriptors
+//
+// Pass multiple descriptors to attach several actions to the same
+// element; they are space-joined into a single data-action value and
+// invoked by Stimulus left-to-right.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<button {{ stimulusAttrActions "..." }}>...</button>
+//	<button {{ stimulusAttrActions "..." "..." }}>...</button>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<button { stimulus.AttrActions("...")... }>...</button>
+//	<button { stimulus.AttrActions("...", "...")... }>...</button>
+//
+// Stimulus Reference — Actions:
+// https://stimulus.hotwired.dev/reference/actions
+func AttrActions(descriptors ...string) Attrs {
+	return Attrs{{Key: "data-action", Value: strings.Join(descriptors, " ")}}
+}
+
+// AttrActionParam renders data-{controller}-{paramName}-param="{paramValue}"
+// on an element. The attribute must sit on the same element as the
+// action that will read it; Stimulus exposes the value on the action
+// method's event.params.
+//
+// Stimulus infers the value type (Number, String, Object, Boolean)
+// from the string form, so this helper always writes the value as-is.
+// For example "12345" is read as a Number, `{"key":"value"}` as an
+// Object, "true" as a Boolean.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<button {{ stimulusAttrActions "..." }}
+//	        {{ stimulusAttrActionParam "..." "..." "..." }}>...</button>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<button { stimulus.AttrActions("...")... }
+//	        { stimulus.AttrActionParam("...", "...", "...")... }>...</button>
+//
+// Stimulus Reference — Action Parameters:
+// https://stimulus.hotwired.dev/reference/actions#action-parameters
+func AttrActionParam(controller, paramName, paramValue string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-param", controller, paramName), Value: paramValue}}
+}
+
+// AttrTargets renders data-{controller}-target="{name1} {name2} ..."
+// on any element, marking it as one or more named targets of the given
+// Stimulus controller. The element must sit within the controller's
+// scope (a descendant of the element carrying
+// data-controller="{controller}").
+//
+// The attribute name embeds the controller identifier, so an element
+// that is a target of multiple controllers needs one AttrTargets call
+// per controller. Each name must be camelCase because Stimulus maps
+// it directly to controller properties (this.[name]Target and
+// friends).
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<input {{ stimulusAttrTargets "..." "..." }}>
+//	<input {{ stimulusAttrTargets "..." "..." "..." }}>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<input { stimulus.AttrTargets("...", "...")... }>
+//	<input { stimulus.AttrTargets("...", "...", "...")... }>
+//
+// Stimulus Reference — Targets:
+// https://stimulus.hotwired.dev/reference/targets
+func AttrTargets(controller string, targetNames ...string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-target", controller), Value: strings.Join(targetNames, " ")}}
+}
+
+// AttrValue renders data-{controller}-{valueName}-value="{value}" on
+// the controller's element (the same element that carries
+// data-controller="{controller}"). It seeds a Stimulus value which the
+// controller reads and writes via this.[name]Value.
+//
+// valueName must be kebab-case, matching the HTML form Stimulus
+// expects: a JavaScript declaration like static values = {
+// contentType: String } needs valueName "content-type", not
+// "contentType". This helper does not convert case; mismatches are
+// silently ignored by Stimulus and fall back to the type's default.
+//
+// value is written verbatim; Stimulus decodes it per the declared
+// type (Array/Boolean/Number/Object/String). JSON-encode Arrays and
+// Objects on the Go side before passing.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrValue "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrValue("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — Values:
+// https://stimulus.hotwired.dev/reference/values
+func AttrValue(controller, valueName, value string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-value", controller, valueName), Value: value}}
+}
+
+// AttrOutlet renders data-{controller}-{outletName}-outlet="{selector}"
+// on the host controller's element (the element that carries
+// data-controller="{controller}"). It wires the host to instances of
+// another Stimulus controller referenced by CSS selector, so the host
+// can call their methods via this.[outletName]Outlet(s) and read
+// their elements via this.[outletName]OutletElement(s).
+//
+// outletName must be the identifier of the target controller (the
+// name it was registered with by ScriptLoad or
+// Application.register) — typically kebab-case, for example
+// "user-status". Every element the selector matches must also carry
+// data-controller="{outletName}"; otherwise Stimulus throws at
+// connect time.
+//
+// selector is a plain CSS selector and may point to elements anywhere
+// on the page — unlike targets, outlets are not restricted to the
+// host controller's scope.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrOutlet "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrOutlet("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — Outlets:
+// https://stimulus.hotwired.dev/reference/outlets
+func AttrOutlet(controller, outletName, selector string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-outlet", controller, outletName), Value: selector}}
+}
+
+// AttrClass renders data-{controller}-{className}-class="{cssClass}" on
+// the controller's element (the same element that carries
+// data-controller="{controller}"). It binds a CSS class value to a
+// logical name declared in the controller's static classes array,
+// which the controller reads via this.[name]Class / this.[name]Classes.
+//
+// className must be kebab-case, matching the HTML form Stimulus
+// expects: a JavaScript declaration like static classes =
+// ["noResults"] needs className "no-results", not "noResults". This
+// helper does not convert case; mismatches raise an error at runtime
+// when the controller reads the property.
+//
+// cssClass is written to the attribute verbatim. Pass one class name
+// or a space-separated list ("bg-gray-500 animate-spinner"); Stimulus
+// exposes the first via this.[name]Class and the full list via
+// this.[name]Classes.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrClass "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrClass("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — CSS Classes:
+// https://stimulus.hotwired.dev/reference/css-classes
+func AttrClass(controller, className, cssClass string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-class", controller, className), Value: cssClass}}
+}
