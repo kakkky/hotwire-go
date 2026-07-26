@@ -6,6 +6,41 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestTemplateFuncMap(t *testing.T) {
+	// Verify every expected helper is registered under its template
+	// funcname; per-helper tests already cover the underlying Go
+	// functions, so this only guards against typos or missed
+	// registrations in TemplateFuncMap.
+	tests := []struct {
+		name     string
+		wantKeys []string
+	}{
+		{
+			name: "every helper is registered",
+			wantKeys: []string{
+				"stimulusScriptLoad",
+				"stimulusAttrControllers",
+				"stimulusAttrActions",
+				"stimulusAttrActionParam",
+				"stimulusAttrTargets",
+				"stimulusAttrValue",
+				"stimulusAttrOutlet",
+				"stimulusAttrClass",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fm := TemplateFuncMap()
+			assert.NotEmpty(t, fm)
+			for _, key := range tt.wantKeys {
+				_, ok := fm[key]
+				assert.Truef(t, ok, "funcmap entry %q missing", key)
+			}
+		})
+	}
+}
+
 func TestScriptLoad(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -106,41 +141,6 @@ func TestScriptLoad(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, ScriptLoad(tt.paths...))
-		})
-	}
-}
-
-func TestTemplateFuncMap(t *testing.T) {
-	// Verify every expected helper is registered under its template
-	// funcname; per-helper tests already cover the underlying Go
-	// functions, so this only guards against typos or missed
-	// registrations in TemplateFuncMap.
-	tests := []struct {
-		name     string
-		wantKeys []string
-	}{
-		{
-			name: "every helper is registered",
-			wantKeys: []string{
-				"stimulusScriptLoad",
-				"stimulusAttrControllers",
-				"stimulusAttrActions",
-				"stimulusAttrActionParam",
-				"stimulusAttrTargets",
-				"stimulusAttrValue",
-				"stimulusAttrOutlet",
-				"stimulusAttrClass",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fm := TemplateFuncMap()
-			assert.NotEmpty(t, fm)
-			for _, key := range tt.wantKeys {
-				_, ok := fm[key]
-				assert.Truef(t, ok, "funcmap entry %q missing", key)
-			}
 		})
 	}
 }
