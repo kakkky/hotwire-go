@@ -45,6 +45,9 @@ func TemplateFuncMap() template.FuncMap {
 		"stimulusAttrTargets": func(controller string, targetNames ...string) template.HTMLAttr {
 			return AttrTargets(controller, targetNames...).HTMLAttr()
 		},
+		"stimulusAttrValue": func(controller, valueName, value string) template.HTMLAttr {
+			return AttrValue(controller, valueName, value).HTMLAttr()
+		},
 	}
 }
 
@@ -308,4 +311,36 @@ func AttrActionParam(controller, paramName, paramValue string) Attrs {
 // https://stimulus.hotwired.dev/reference/targets
 func AttrTargets(controller string, targetNames ...string) Attrs {
 	return Attrs{{Key: fmt.Sprintf("data-%s-target", controller), Value: strings.Join(targetNames, " ")}}
+}
+
+// AttrValue renders data-{controller}-{valueName}-value="{value}" on
+// the controller's element (the same element that carries
+// data-controller="{controller}"). It seeds a Stimulus value which the
+// controller reads and writes via this.[name]Value.
+//
+// valueName must be kebab-case, matching the HTML form Stimulus
+// expects: a JavaScript declaration like static values = {
+// contentType: String } needs valueName "content-type", not
+// "contentType". This helper does not convert case; mismatches are
+// silently ignored by Stimulus and fall back to the type's default.
+//
+// value is written verbatim; Stimulus decodes it per the declared
+// type (Array/Boolean/Number/Object/String). JSON-encode Arrays and
+// Objects on the Go side before passing.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrValue "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrValue("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — Values:
+// https://stimulus.hotwired.dev/reference/values
+func AttrValue(controller, valueName, value string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-value", controller, valueName), Value: value}}
 }

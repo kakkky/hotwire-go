@@ -259,3 +259,54 @@ func TestAttrTargets(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrValue(t *testing.T) {
+	tests := []struct {
+		name       string
+		controller string
+		valueName  string
+		value      string
+		want       Attrs
+	}{
+		{
+			name:       "string value",
+			controller: "loader",
+			valueName:  "url",
+			value:      "/messages",
+			want:       Attrs{{Key: "data-loader-url-value", Value: "/messages"}},
+		},
+		{
+			name:       "number-like value",
+			controller: "loader",
+			valueName:  "interval",
+			value:      "5000",
+			want:       Attrs{{Key: "data-loader-interval-value", Value: "5000"}},
+		},
+		{
+			name:       "boolean-like value",
+			controller: "modal",
+			valueName:  "open",
+			value:      "true",
+			want:       Attrs{{Key: "data-modal-open-value", Value: "true"}},
+		},
+		{
+			name:       "object value as JSON string",
+			controller: "loader",
+			valueName:  "headers",
+			value:      `{"X-Foo":"1"}`,
+			want:       Attrs{{Key: "data-loader-headers-value", Value: `{"X-Foo":"1"}`}},
+		},
+		{
+			name:       "kebab-case valueName is embedded verbatim",
+			controller: "loader",
+			valueName:  "content-type",
+			value:      "application/json",
+			want:       Attrs{{Key: "data-loader-content-type-value", Value: "application/json"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrValue(tt.controller, tt.valueName, tt.value))
+		})
+	}
+}
