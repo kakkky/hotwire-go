@@ -347,3 +347,40 @@ func TestAttrOutlet(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrClass(t *testing.T) {
+	tests := []struct {
+		name       string
+		controller string
+		className  string
+		cssClass   string
+		want       Attrs
+	}{
+		{
+			name:       "single css class",
+			controller: "search",
+			className:  "loading",
+			cssClass:   "search--busy",
+			want:       Attrs{{Key: "data-search-loading-class", Value: "search--busy"}},
+		},
+		{
+			name:       "space-separated css classes are embedded verbatim",
+			controller: "search",
+			className:  "loading",
+			cssClass:   "bg-gray-500 animate-spinner cursor-busy",
+			want:       Attrs{{Key: "data-search-loading-class", Value: "bg-gray-500 animate-spinner cursor-busy"}},
+		},
+		{
+			name:       "kebab-case className is embedded verbatim",
+			controller: "search",
+			className:  "no-results",
+			cssClass:   "search--empty",
+			want:       Attrs{{Key: "data-search-no-results-class", Value: "search--empty"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrClass(tt.controller, tt.className, tt.cssClass))
+		})
+	}
+}

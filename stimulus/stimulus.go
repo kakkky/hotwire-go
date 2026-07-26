@@ -51,6 +51,9 @@ func TemplateFuncMap() template.FuncMap {
 		"stimulusAttrOutlet": func(controller, outletName, selector string) template.HTMLAttr {
 			return AttrOutlet(controller, outletName, selector).HTMLAttr()
 		},
+		"stimulusAttrClass": func(controller, className, cssClass string) template.HTMLAttr {
+			return AttrClass(controller, className, cssClass).HTMLAttr()
+		},
 	}
 }
 
@@ -381,4 +384,38 @@ func AttrValue(controller, valueName, value string) Attrs {
 // https://stimulus.hotwired.dev/reference/outlets
 func AttrOutlet(controller, outletName, selector string) Attrs {
 	return Attrs{{Key: fmt.Sprintf("data-%s-%s-outlet", controller, outletName), Value: selector}}
+}
+
+// AttrClass renders data-{controller}-{className}-class="{cssClass}" on
+// the controller's element (the same element that carries
+// data-controller="{controller}"). It binds a CSS class value to a
+// logical name declared in the controller's static classes array,
+// which the controller reads via this.[name]Class / this.[name]Classes.
+//
+// className must be kebab-case, matching the HTML form Stimulus
+// expects: a JavaScript declaration like static classes =
+// ["noResults"] needs className "no-results", not "noResults". This
+// helper does not convert case; mismatches raise an error at runtime
+// when the controller reads the property.
+//
+// cssClass is written to the attribute verbatim. Pass one class name
+// or a space-separated list ("bg-gray-500 animate-spinner"); Stimulus
+// exposes the first via this.[name]Class and the full list via
+// this.[name]Classes.
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<div {{ stimulusAttrControllers "..." }}
+//	     {{ stimulusAttrClass "..." "..." "..." }}>...</div>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<div { stimulus.AttrControllers("...")... }
+//	     { stimulus.AttrClass("...", "...", "...")... }>...</div>
+//
+// Stimulus Reference — CSS Classes:
+// https://stimulus.hotwired.dev/reference/css-classes
+func AttrClass(controller, className, cssClass string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-%s-class", controller, className), Value: cssClass}}
 }
