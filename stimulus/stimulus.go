@@ -2,16 +2,47 @@ package stimulus
 
 import (
 	"fmt"
+	"html/template"
 	"path"
 	"strings"
-	"text/template"
+	texttmpl "text/template"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
+// TemplateFuncMap returns an html/template.FuncMap containing every Stimulus
+// template helper provided by this package. It must be registered before
+// parsing any file that references the helpers, because html/template
+// resolves function names at parse time. When using the sibling view
+// package, pass the result to view.WithFuncs so it is attached to the
+// layout and every page before parsing:
+//
+//	r, err := view.New(fsys, "views", view.WithFuncs(stimulus.TemplateFuncMap()))
+//
+// When driving html/template directly, call Funcs on the base template
+// before ParseFiles / ParseFS:
+//
+//	tmpl := template.New("").Funcs(stimulus.TemplateFuncMap()).ParseFiles(...)
+//
+// Helpers are registered under names prefixed with stimulus (for example
+// stimulusScriptLoad). See each helper's godoc for its purpose, arguments,
+// and template call form.
 func TemplateFuncMap() template.FuncMap {
-	return template.FuncMap{}
+	return template.FuncMap{
+		"stimulusScriptLoad": func(controllerPaths ...string) template.HTML {
+			return ScriptLoad(controllerPaths...).HTMLTag()
+		},
+		"stimulusAttrControllers": func(identifiers ...string) template.HTMLAttr {
+			return AttrControllers(identifiers...).HTMLAttr()
+		},
+		"stimulusAttrActions": func(descriptors ...string) template.HTMLAttr {
+			return AttrActions(descriptors...).HTMLAttr()
+		},
+		"stimulusAttrActionParam": func(controller, paramName, paramValue string) template.HTMLAttr {
+			return AttrActionParam(controller, paramName, paramValue).HTMLAttr()
+		},
+	}
 }
 
 const stimulusVersion = "3.2.2"
@@ -24,7 +55,7 @@ const scriptImportMapHTML = `<script type="importmap">
 }
 </script>`
 
-var scriptModuleHTMLTmpl = template.Must(template.New("module").Parse(
+var scriptModuleHTMLTmpl = texttmpl.Must(texttmpl.New("module").Parse(
 	`<script type="module">
   import { Application } from "@hotwired/stimulus"
 {{- range .Controllers }}
