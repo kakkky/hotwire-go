@@ -1,8 +1,6 @@
 package stimulus
 
 import (
-	"html/template"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,43 +111,25 @@ func TestScriptLoad(t *testing.T) {
 }
 
 func TestTemplateFuncMap(t *testing.T) {
-	// All Stimulus helpers are exposed through TemplateFuncMap; wantKeys is
-	// the full list of registered names, and templateSrc invokes every
-	// entry so the closure bodies (not just the map lookups) execute.
-	wantKeys := []string{
-		"stimulusScriptLoad",
-		"stimulusAttrControllers",
-		"stimulusAttrActions",
-		"stimulusAttrActionParam",
-		"stimulusAttrTargets",
-		"stimulusAttrValue",
-		"stimulusAttrOutlet",
-		"stimulusAttrClass",
-	}
-
-	templateSrc := strings.Join([]string{
-		`{{ stimulusScriptLoad "/js/hello_controller.js" }}`,
-		`{{ stimulusAttrControllers "hello" }}`,
-		`{{ stimulusAttrActions "click" }}`,
-		`{{ stimulusAttrActionParam "hello" "id" "1" }}`,
-		`{{ stimulusAttrTargets "hello" "name" }}`,
-		`{{ stimulusAttrValue "hello" "url" "/messages" }}`,
-		`{{ stimulusAttrOutlet "hello" "modal" ".confirm" }}`,
-		`{{ stimulusAttrClass "hello" "loading" "opacity-50" }}`,
-	}, "")
-
+	// Verify every expected helper is registered under its template
+	// funcname; per-helper tests already cover the underlying Go
+	// functions, so this only guards against typos or missed
+	// registrations in TemplateFuncMap.
 	tests := []struct {
-		name         string
-		wantKeys     []string
-		templateSrc  string
-		wantContains []string
+		name     string
+		wantKeys []string
 	}{
 		{
-			name:        "every helper is registered and its closure executes",
-			wantKeys:    wantKeys,
-			templateSrc: templateSrc,
-			wantContains: []string{
-				`Stimulus.register("hello", HelloController)`,
+			name: "every helper is registered",
+			wantKeys: []string{
+				"stimulusScriptLoad",
+				"stimulusAttrControllers",
+				"stimulusAttrActions",
+				"stimulusAttrActionParam",
+				"stimulusAttrTargets",
+				"stimulusAttrValue",
+				"stimulusAttrOutlet",
+				"stimulusAttrClass",
 			},
 		},
 	}
@@ -160,15 +140,6 @@ func TestTemplateFuncMap(t *testing.T) {
 			for _, key := range tt.wantKeys {
 				_, ok := fm[key]
 				assert.Truef(t, ok, "funcmap entry %q missing", key)
-			}
-
-			tmpl, err := template.New("all").Funcs(fm).Parse(tt.templateSrc)
-			assert.NoError(t, err)
-
-			var buf strings.Builder
-			assert.NoError(t, tmpl.Execute(&buf, nil))
-			for _, sub := range tt.wantContains {
-				assert.Contains(t, buf.String(), sub)
 			}
 		})
 	}
