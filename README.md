@@ -1,6 +1,6 @@
 # hotwire-go
 
-Server-side helpers for building [Hotwire](https://hotwired.dev) Turbo apps in Go.
+Server-side helpers for building [Hotwire](https://hotwired.dev) apps in Go.
 
 [![CI](https://github.com/kakkky/hotwire-go/actions/workflows/ci.yml/badge.svg)](https://github.com/kakkky/hotwire-go/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/kakkky/hotwire-go.svg)](https://pkg.go.dev/github.com/kakkky/hotwire-go)
@@ -10,21 +10,22 @@ Server-side helpers for building [Hotwire](https://hotwired.dev) Turbo apps in G
 ## Overview
 
 hotwire-go is a small toolkit that lets you build [Hotwire](https://hotwired.dev)
-apps in Go. It targets the [Turbo](https://turbo.hotwired.dev) side of Hotwire
-(Drive / Frames / Streams) and provides Go helpers that generate the exact HTML
-tags, attributes, and meta elements Turbo expects — usable from both
-`html/template` and [a-h/templ](https://github.com/a-h/templ) with the same
-helper API.
+apps in Go. It covers [Turbo](https://turbo.hotwired.dev) (Drive / Frames /
+Streams) and [Stimulus](https://stimulus.hotwired.dev), providing Go helpers
+that generate the exact HTML tags, attributes, and meta elements each runtime
+expects — usable from both `html/template` and
+[a-h/templ](https://github.com/a-h/templ) with the same helper API.
 
 - **`turbo` package** — Turbo helpers (Drive / Frames / Streams), an SSE
   handler, and a pluggable stream broker.
+- **`stimulus` package** — Stimulus helpers: boot script and data-attribute
+  helpers for controllers, actions, targets, values, outlets, and CSS classes.
 - **`view` package** — *optional* thin `html/template` renderer that follows
   the layout / partial / page convention. templ users do not need it.
 
-hotwire-go does **not** ship the Turbo JavaScript runtime itself
-(`turbo.ScriptImport()` emits a `<script>` tag that loads it from a CDN) and
-is **not** a router or web framework. Stimulus helpers are tentatively in
-scope (see Roadmap).
+hotwire-go does **not** ship the Turbo or Stimulus JavaScript runtimes itself
+(`turbo.ScriptImport()` and `stimulus.ScriptLoad()` emit `<script>` tags that
+load them from a CDN) and is **not** a router or web framework.
 
 ## Installation
 
@@ -37,7 +38,8 @@ go get github.com/kakkky/hotwire-go
 ```go
 import (
     "github.com/kakkky/hotwire-go/turbo"
-    "github.com/kakkky/hotwire-go/view" // optional; html/template users only
+    "github.com/kakkky/hotwire-go/stimulus" // optional; if you also use Stimulus
+    "github.com/kakkky/hotwire-go/view"     // optional; html/template users only
 )
 ```
 
@@ -75,6 +77,15 @@ import (
 - `StreamsMiddleware` — per-browser session cookie whose id is baked
   into each token, so a token leaked to another browser cannot be replayed
 - `Broadcast` — render multiple `StreamContent` values into a single message
+
+### Stimulus
+
+- CDN `<script>` boot helper (`ScriptLoad`) that emits the importmap and
+  registers the controller modules you pass in
+- Optional package-level `Debug` flag that toggles `Stimulus.debug` in the
+  emitted boot script
+- Data-attribute helpers covering the full Stimulus reference: controllers,
+  actions, action params, targets, values, outlets, and CSS classes
 
 ### Templating
 
@@ -145,21 +156,20 @@ A dedicated documentation site with end-to-end examples is planned.
 
 ## Compatibility
 
-`turbo.ScriptImport()` pins the Turbo runtime it loads from the CDN. The
-pinned version tracks what hotwire-go's helpers have been validated against
-and is bumped alongside hotwire-go releases.
+`turbo.ScriptImport()` and `stimulus.ScriptLoad()` pin the runtimes they
+load from the CDN. The pinned versions track what hotwire-go's helpers have
+been validated against and are bumped alongside hotwire-go releases.
 
-| hotwire-go | Turbo runtime |
-| ---------- | ------------- |
-| current    | 8.0.23        |
+| hotwire-go | Turbo runtime | Stimulus runtime |
+| ---------- | ------------- | ---------------- |
+| current    | 8.0.23        | 3.2.2            |
 
-Applications that ship Turbo through their own bundler or import map do not
-need `ScriptImport()` and are free to load any version compatible with the
-helpers they use.
+Applications that ship Turbo or Stimulus through their own bundler or import
+map do not need these helpers and are free to load any version compatible
+with the helpers they use.
 
 ## Roadmap
 
-- **Stimulus helpers** — tentative support for the Stimulus side of Hotwire.
 - **WebSocket transport for Turbo Streams** — alongside the current SSE
   handler.
 - **Redis broker** — expanded / production-hardened Redis-backed broker.
