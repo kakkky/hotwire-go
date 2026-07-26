@@ -38,8 +38,8 @@ go get github.com/kakkky/hotwire-go
 ```go
 import (
     "github.com/kakkky/hotwire-go/turbo"
-    "github.com/kakkky/hotwire-go/stimulus" // optional; if you also use Stimulus
-    "github.com/kakkky/hotwire-go/view"     // optional; html/template users only
+    "github.com/kakkky/hotwire-go/stimulus"
+    "github.com/kakkky/hotwire-go/view"
 )
 ```
 
