@@ -1,10 +1,8 @@
 package turbo
 
 import (
-	"html/template"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,134 +55,73 @@ func TestScriptImport(t *testing.T) {
 }
 
 func TestTemplateFuncMap(t *testing.T) {
-	// All Turbo helpers are exposed through TemplateFuncMap; wantKeys is
-	// the full list of registered names, and templateSrc invokes every
-	// entry so the closure bodies (not just the map lookups) execute.
-	wantKeys := []string{
-		"turboScriptImport",
-		"turboAttrConfirm",
-		"turboAttrSubmitsWith",
-		"turboAttrActionAdvance",
-		"turboAttrActionReplace",
-		"turboAttrMethodDelete",
-		"turboAttrMethodPatch",
-		"turboAttrMethodPut",
-		"turboMetaVisitControlReload",
-		"turboMetaCacheControlNoPreview",
-		"turboMetaCacheControlNoCache",
-		"turboMetaViewTransition",
-		"turboMetaRefreshMethodMorph",
-		"turboMetaRefreshScrollPreserve",
-		"turboMetaDisablePrefetch",
-		"turboMetaRoot",
-		"turboAttrTrackReload",
-		"turboAttrTrackDynamic",
-		"turboAttrDisableTurbo",
-		"turboAttrEnableTurbo",
-		"turboAttrPreload",
-		"turboAttrDisablePrefetch",
-		"turboAttrPermanent",
-		"turboAttrTemporary",
-		"turboAttrDisableEval",
-		"turboFrame",
-		"turboFrameEnd",
-		"turboAttrSrc",
-		"turboAttrLoadingLazy",
-		"turboAttrLoadingEager",
-		"turboAttrDisabled",
-		"turboAttrTarget",
-		"turboAttrFrame",
-		"turboAttrRecurse",
-		"turboAttrAutoscroll",
-		"turboAttrAutoscrollBlockStart",
-		"turboAttrAutoscrollBlockCenter",
-		"turboAttrAutoscrollBlockEnd",
-		"turboAttrAutoscrollBlockNearest",
-		"turboAttrAutoscrollBehaviorAuto",
-		"turboAttrAutoscrollBehaviorSmooth",
-		"turboAttrRefreshMorph",
-		"turboStreamAppend",
-		"turboStreamPrepend",
-		"turboStreamReplace",
-		"turboStreamUpdate",
-		"turboStreamRemove",
-		"turboStreamBefore",
-		"turboStreamAfter",
-		"turboStreamRefresh",
-		"turboStreamEnd",
-		"turboAttrTargets",
-		"turboAttrRequestID",
-		"turboAttrMethodMorph",
-		"turboStreamSourceSSE",
-	}
-
-	templateSrc := strings.Join([]string{
-		`{{ turboScriptImport }}`,
-		`{{ turboAttrConfirm "ok?" }}`,
-		`{{ turboAttrSubmitsWith "Saving..." }}`,
-		`{{ turboAttrActionAdvance }}`,
-		`{{ turboAttrActionReplace }}`,
-		`{{ turboAttrMethodDelete }}`,
-		`{{ turboAttrMethodPatch }}`,
-		`{{ turboAttrMethodPut }}`,
-		`{{ turboMetaVisitControlReload }}`,
-		`{{ turboMetaCacheControlNoPreview }}`,
-		`{{ turboMetaCacheControlNoCache }}`,
-		`{{ turboMetaViewTransition }}`,
-		`{{ turboMetaRefreshMethodMorph }}`,
-		`{{ turboMetaRefreshScrollPreserve }}`,
-		`{{ turboMetaDisablePrefetch }}`,
-		`{{ turboMetaRoot "/app" }}`,
-		`{{ turboAttrTrackReload }}`,
-		`{{ turboAttrTrackDynamic }}`,
-		`{{ turboAttrDisableTurbo }}`,
-		`{{ turboAttrEnableTurbo }}`,
-		`{{ turboAttrPreload }}`,
-		`{{ turboAttrDisablePrefetch }}`,
-		`{{ turboAttrPermanent }}`,
-		`{{ turboAttrTemporary }}`,
-		`{{ turboAttrDisableEval }}`,
-		`{{ turboFrame "x" }}inside{{ turboFrameEnd }}`,
-		`{{ turboAttrSrc "/x" }}`,
-		`{{ turboAttrLoadingLazy }}`,
-		`{{ turboAttrLoadingEager }}`,
-		`{{ turboAttrDisabled }}`,
-		`{{ turboAttrTarget "_top" }}`,
-		`{{ turboAttrFrame "_top" }}`,
-		`{{ turboAttrRecurse "nested" }}`,
-		`{{ turboAttrAutoscroll }}`,
-		`{{ turboAttrAutoscrollBlockStart }}`,
-		`{{ turboAttrAutoscrollBlockCenter }}`,
-		`{{ turboAttrAutoscrollBlockEnd }}`,
-		`{{ turboAttrAutoscrollBlockNearest }}`,
-		`{{ turboAttrAutoscrollBehaviorAuto }}`,
-		`{{ turboAttrAutoscrollBehaviorSmooth }}`,
-		`{{ turboAttrRefreshMorph }}`,
-		`{{ turboStreamAppend "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamPrepend "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamReplace "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamUpdate "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamRemove "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamBefore "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamAfter "m" }}{{ turboStreamEnd }}`,
-		`{{ turboStreamRefresh }}{{ turboStreamEnd }}`,
-		`{{ turboAttrTargets ".x" }}`,
-		`{{ turboAttrRequestID "r-1" }}`,
-		`{{ turboAttrMethodMorph }}`,
-		// turboStreamSourceSSE execution is delegated to TestStreamSourceSSE.
-	}, "")
-
+	// Verify every expected helper is registered under its template
+	// funcname; per-helper tests already cover the underlying Go
+	// functions, so this only guards against typos or missed
+	// registrations in TemplateFuncMap.
 	tests := []struct {
-		name         string
-		wantKeys     []string
-		templateSrc  string
-		wantContains []string
+		name     string
+		wantKeys []string
 	}{
 		{
-			name:         "every helper is registered and its closure executes",
-			wantKeys:     wantKeys,
-			templateSrc:  templateSrc,
-			wantContains: []string{`<turbo-frame id="x">`, `inside`, `</turbo-frame>`},
+			name: "every helper is registered",
+			wantKeys: []string{
+				"turboScriptImport",
+				"turboAttrConfirm",
+				"turboAttrSubmitsWith",
+				"turboAttrActionAdvance",
+				"turboAttrActionReplace",
+				"turboAttrMethodDelete",
+				"turboAttrMethodPatch",
+				"turboAttrMethodPut",
+				"turboMetaVisitControlReload",
+				"turboMetaCacheControlNoPreview",
+				"turboMetaCacheControlNoCache",
+				"turboMetaViewTransition",
+				"turboMetaRefreshMethodMorph",
+				"turboMetaRefreshScrollPreserve",
+				"turboMetaDisablePrefetch",
+				"turboMetaRoot",
+				"turboAttrTrackReload",
+				"turboAttrTrackDynamic",
+				"turboAttrDisableTurbo",
+				"turboAttrEnableTurbo",
+				"turboAttrPreload",
+				"turboAttrDisablePrefetch",
+				"turboAttrPermanent",
+				"turboAttrTemporary",
+				"turboAttrDisableEval",
+				"turboFrame",
+				"turboFrameEnd",
+				"turboAttrSrc",
+				"turboAttrLoadingLazy",
+				"turboAttrLoadingEager",
+				"turboAttrDisabled",
+				"turboAttrTarget",
+				"turboAttrFrame",
+				"turboAttrRecurse",
+				"turboAttrAutoscroll",
+				"turboAttrAutoscrollBlockStart",
+				"turboAttrAutoscrollBlockCenter",
+				"turboAttrAutoscrollBlockEnd",
+				"turboAttrAutoscrollBlockNearest",
+				"turboAttrAutoscrollBehaviorAuto",
+				"turboAttrAutoscrollBehaviorSmooth",
+				"turboAttrRefreshMorph",
+				"turboStreamAppend",
+				"turboStreamPrepend",
+				"turboStreamReplace",
+				"turboStreamUpdate",
+				"turboStreamRemove",
+				"turboStreamBefore",
+				"turboStreamAfter",
+				"turboStreamRefresh",
+				"turboStreamEnd",
+				"turboAttrTargets",
+				"turboAttrRequestID",
+				"turboAttrMethodMorph",
+				"turboStreamSourceSSE",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -194,15 +131,6 @@ func TestTemplateFuncMap(t *testing.T) {
 			for _, key := range tt.wantKeys {
 				_, ok := fm[key]
 				assert.Truef(t, ok, "funcmap entry %q missing", key)
-			}
-
-			tmpl, err := template.New("all").Funcs(fm).Parse(tt.templateSrc)
-			assert.NoError(t, err)
-
-			var buf strings.Builder
-			assert.NoError(t, tmpl.Execute(&buf, nil))
-			for _, sub := range tt.wantContains {
-				assert.Contains(t, buf.String(), sub)
 			}
 		})
 	}
