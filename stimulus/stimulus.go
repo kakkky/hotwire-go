@@ -42,6 +42,9 @@ func TemplateFuncMap() template.FuncMap {
 		"stimulusAttrActionParam": func(controller, paramName, paramValue string) template.HTMLAttr {
 			return AttrActionParam(controller, paramName, paramValue).HTMLAttr()
 		},
+		"stimulusAttrTargets": func(controller string, targetNames ...string) template.HTMLAttr {
+			return AttrTargets(controller, targetNames...).HTMLAttr()
+		},
 	}
 }
 
@@ -276,4 +279,33 @@ func AttrActions(descriptors ...string) Attrs {
 // https://stimulus.hotwired.dev/reference/actions#action-parameters
 func AttrActionParam(controller, paramName, paramValue string) Attrs {
 	return Attrs{{Key: fmt.Sprintf("data-%s-%s-param", controller, paramName), Value: paramValue}}
+}
+
+// AttrTargets renders data-{controller}-target="{name1} {name2} ..."
+// on any element, marking it as one or more named targets of the given
+// Stimulus controller. The element must sit within the controller's
+// scope (a descendant of the element carrying
+// data-controller="{controller}").
+//
+// The attribute name embeds the controller identifier, so an element
+// that is a target of multiple controllers needs one AttrTargets call
+// per controller. Each name must be camelCase because Stimulus maps
+// it directly to controller properties (this.[name]Target and
+// friends).
+//
+// Register via stimulus.TemplateFuncMap and call from templates as:
+//
+//	<input {{ stimulusAttrTargets "..." "..." }}>
+//	<input {{ stimulusAttrTargets "..." "..." "..." }}>
+//
+// Alternatively, call it directly from an a-h/templ template
+// (https://github.com/a-h/templ) using the spread attributes syntax:
+//
+//	<input { stimulus.AttrTargets("...", "...")... }>
+//	<input { stimulus.AttrTargets("...", "...", "...")... }>
+//
+// Stimulus Reference — Targets:
+// https://stimulus.hotwired.dev/reference/targets
+func AttrTargets(controller string, targetNames ...string) Attrs {
+	return Attrs{{Key: fmt.Sprintf("data-%s-target", controller), Value: strings.Join(targetNames, " ")}}
 }

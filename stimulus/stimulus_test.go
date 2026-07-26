@@ -226,3 +226,36 @@ func TestAttrActionParam(t *testing.T) {
 		})
 	}
 }
+
+func TestAttrTargets(t *testing.T) {
+	tests := []struct {
+		name        string
+		controller  string
+		targetNames []string
+		want        Attrs
+	}{
+		{
+			name:        "no target names renders an empty data-{controller}-target value",
+			controller:  "search",
+			targetNames: nil,
+			want:        Attrs{{Key: "data-search-target", Value: ""}},
+		},
+		{
+			name:        "single target name",
+			controller:  "search",
+			targetNames: []string{"query"},
+			want:        Attrs{{Key: "data-search-target", Value: "query"}},
+		},
+		{
+			name:        "multiple target names are space-joined in order",
+			controller:  "search",
+			targetNames: []string{"query", "results"},
+			want:        Attrs{{Key: "data-search-target", Value: "query results"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, AttrTargets(tt.controller, tt.targetNames...))
+		})
+	}
+}
