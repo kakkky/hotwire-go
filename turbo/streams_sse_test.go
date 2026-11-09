@@ -78,43 +78,59 @@ type nonFlushingResponseWriter struct {
 	http.ResponseWriter
 }
 
+// unwrappingResponseWriter hides the http.Flusher implementation of
+// the embedded recorder but exposes the recorder through Unwrap.
+type unwrappingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w unwrappingResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 func TestNewStreamSSEWriter(t *testing.T) {
+	sseHeader := http.Header{
+		"Content-Type":      {"text/event-stream"},
+		"Cache-Control":     {"no-cache"},
+		"Connection":        {"keep-alive"},
+		"X-Accel-Buffering": {"no"},
+	}
 	tests := []struct {
-		name       string
-		flushable  bool
-		wantErr    error
-		wantHeader http.Header
+		name        string
+		wrap        func(rec *httptest.ResponseRecorder) http.ResponseWriter
+		wantErr     error
+		wantHeader  http.Header
+		wantFlushed bool
 	}{
 		{
-			name:      "flushable writer gets event-stream headers",
-			flushable: true,
-			wantHeader: http.Header{
-				"Content-Type":      {"text/event-stream"},
-				"Cache-Control":     {"no-cache"},
-				"Connection":        {"keep-alive"},
-				"X-Accel-Buffering": {"no"},
-			},
+			name:        "flushable writer gets event-stream headers",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return rec },
+			wantHeader:  sseHeader,
+			wantFlushed: true,
 		},
 		{
-			name:       "non-flushable writer is rejected untouched",
-			flushable:  false,
-			wantErr:    ErrStreamSSEFlushNotSupported,
-			wantHeader: http.Header{},
+			name:        "wrapped writer is flushed through Unwrap",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return unwrappingResponseWriter{rec} },
+			wantHeader:  sseHeader,
+			wantFlushed: true,
+		},
+		{
+			name:        "non-flushable writer is rejected untouched",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return nonFlushingResponseWriter{rec} },
+			wantErr:     ErrStreamSSEFlushNotSupported,
+			wantHeader:  http.Header{},
+			wantFlushed: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			var w http.ResponseWriter = rec
-			if !tt.flushable {
-				w = nonFlushingResponseWriter{rec}
-			}
 
-			_, err := NewStreamSSEWriter(w)
+			_, err := NewStreamSSEWriter(tt.wrap(rec))
 
 			assert.ErrorIs(t, err, tt.wantErr)
 			assert.Equal(t, tt.wantHeader, rec.Header())
-			assert.Equal(t, tt.flushable, rec.Flushed)
+			assert.Equal(t, tt.wantFlushed, rec.Flushed)
 		})
 	}
 }

@@ -80,15 +80,19 @@ func StreamSourceSSE(ctx context.Context, stream string) Elm {
 //
 // Write and Heartbeat are safe to call from multiple goroutines.
 type StreamSSEWriter struct {
-	mu      sync.Mutex
-	w       io.Writer
-	flusher http.Flusher
+	mu sync.Mutex
+	w  io.Writer
+	rc *http.ResponseController
 }
 
 // NewStreamSSEWriter sets the text/event-stream response headers on w
 // and flushes them, committing a 200 response. It returns
 // ErrStreamSSEFlushNotSupported without touching w when w cannot
 // flush.
+//
+// Flushing goes through http.ResponseController, so when w wraps
+// another http.ResponseWriter, w can be flushed as long as it exposes
+// the wrapped writer from an Unwrap() http.ResponseWriter method.
 //
 //	sse, err := turbo.NewStreamSSEWriter(w)
 //	if err != nil {
@@ -97,17 +101,29 @@ type StreamSSEWriter struct {
 //	}
 //	_ = sse.Write(r.Context(), turbo.StreamUpdate("answer"))
 func NewStreamSSEWriter(w http.ResponseWriter) (*StreamSSEWriter, error) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return nil, ErrStreamSSEFlushNotSupported
+	headers := map[string]string{
+		"Content-Type":      "text/event-stream",
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"X-Accel-Buffering": "no",
 	}
 	h := w.Header()
-	h.Set("Content-Type", "text/event-stream")
-	h.Set("Cache-Control", "no-cache")
-	h.Set("Connection", "keep-alive")
-	h.Set("X-Accel-Buffering", "no")
-	flusher.Flush()
-	return &StreamSSEWriter{w: w, flusher: flusher}, nil
+	for k, v := range headers {
+		h.Set(k, v)
+	}
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		if !errors.Is(err, http.ErrNotSupported) {
+			return nil, err
+		}
+		// ResponseController reports a missing Flush only by trying it,
+		// so the headers set above are taken back to leave w untouched.
+		for k := range headers {
+			h.Del(k)
+		}
+		return nil, ErrStreamSSEFlushNotSupported
+	}
+	return &StreamSSEWriter{w: w, rc: rc}, nil
 }
 
 // Write renders contents in order and sends their concatenation as a
@@ -129,8 +145,7 @@ func (s *StreamSSEWriter) Write(ctx context.Context, contents ...StreamContent) 
 	if err := writeEventStreamFormat(s.w, "message", buf.Bytes()); err != nil {
 		return err
 	}
-	s.flusher.Flush()
-	return nil
+	return s.rc.Flush()
 }
 
 // Heartbeat writes an SSE comment frame (":\n\n") so that reverse
@@ -141,8 +156,7 @@ func (s *StreamSSEWriter) Heartbeat() error {
 	if _, err := io.WriteString(s.w, ":\n\n"); err != nil {
 		return err
 	}
-	s.flusher.Flush()
-	return nil
+	return s.rc.Flush()
 }
 
 // StreamSSEHandler returns the SSE endpoint that pairs with
