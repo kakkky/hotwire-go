@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,17 +18,17 @@ import (
 )
 
 // testSid is a canonical session identifier used across the tests to
-// stand in for the value StreamsMiddleware would install on a real
+// stand in for the value StreamSSEBroadcastMiddleware would install on a real
 // request.
 const testSid = "test-session-id"
 
-// signedTestSid is testSid packaged as StreamsMiddleware would put it
-// on the wire: an auth.SignSid value that StreamSSEHandler decodes
+// signedTestSid is testSid packaged as StreamSSEBroadcastMiddleware would put it
+// on the wire: an auth.SignSid value that StreamSSEBroadcastHandler decodes
 // with auth.VerifySid before comparing to the sid inside the token.
 // Using a fresh long TTL keeps it valid across every test run.
 var signedTestSid = auth.SignSid(testSid, defaultStreamTokenTTL)
 
-func TestStreamSourceSSE(t *testing.T) {
+func TestStreamSSEBroadcastSource(t *testing.T) {
 	tests := []struct {
 		name   string
 		stream string
@@ -48,7 +49,7 @@ func TestStreamSourceSSE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(t.Context(), sidCtxKey{}, testSid)
-			elm := StreamSourceSSE(ctx, tt.stream)
+			elm := StreamSSEBroadcastSource(ctx, tt.stream)
 
 			assert.Equal(t, Tag("turbo-stream-source"), elm.Tag)
 			require.Len(t, elm.Attrs, 1)
@@ -59,7 +60,7 @@ func TestStreamSourceSSE(t *testing.T) {
 			src, ok := attr.Value.(string)
 			require.True(t, ok, "src attribute value must be a string")
 
-			prefix := StreamsSSEPath + "?token="
+			prefix := StreamSSEBroadcastPath + "?token="
 			require.Truef(t, strings.HasPrefix(src, prefix), "src %q must start with %q", src, prefix)
 
 			token := strings.TrimPrefix(src, prefix)
@@ -71,7 +72,177 @@ func TestStreamSourceSSE(t *testing.T) {
 	}
 }
 
-func TestStreamSSEHandler(t *testing.T) {
+func TestStreamSSESource(t *testing.T) {
+	tests := []struct {
+		name  string
+		id    string
+		src   string
+		extra []Attrs
+		want  Elm
+	}{
+		{
+			name: "id and src",
+			id:   "answer-source",
+			src:  "/answers/42/stream",
+			want: Elm{
+				Tag: Tag("turbo-stream-source"),
+				Attrs: Attrs{
+					{Key: "id", Value: "answer-source"},
+					{Key: "src", Value: "/answers/42/stream"},
+				},
+			},
+		},
+		{
+			name:  "id and src with extra attrs",
+			id:    "answer-source",
+			src:   "/answers/42/stream",
+			extra: []Attrs{{{Key: "data-answer", Value: "42"}}},
+			want: Elm{
+				Tag: Tag("turbo-stream-source"),
+				Attrs: Attrs{
+					{Key: "id", Value: "answer-source"},
+					{Key: "src", Value: "/answers/42/stream"},
+					{Key: "data-answer", Value: "42"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, StreamSSESource(tt.id, tt.src, tt.extra...))
+		})
+	}
+}
+
+// nonFlushingResponseWriter hides the http.Flusher implementation of
+// the embedded recorder.
+type nonFlushingResponseWriter struct {
+	http.ResponseWriter
+}
+
+// unwrappingResponseWriter hides the http.Flusher implementation of
+// the embedded recorder but exposes the recorder through Unwrap.
+type unwrappingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (w unwrappingResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+func TestNewStreamSSEWriter(t *testing.T) {
+	sseHeader := http.Header{
+		"Content-Type":      {"text/event-stream"},
+		"Cache-Control":     {"no-cache"},
+		"Connection":        {"keep-alive"},
+		"X-Accel-Buffering": {"no"},
+	}
+	tests := []struct {
+		name        string
+		wrap        func(rec *httptest.ResponseRecorder) http.ResponseWriter
+		wantErr     error
+		wantHeader  http.Header
+		wantFlushed bool
+	}{
+		{
+			name:        "flushable writer gets event-stream headers",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return rec },
+			wantHeader:  sseHeader,
+			wantFlushed: true,
+		},
+		{
+			name:        "wrapped writer is flushed through Unwrap",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return unwrappingResponseWriter{rec} },
+			wantHeader:  sseHeader,
+			wantFlushed: true,
+		},
+		{
+			name:        "non-flushable writer is rejected untouched",
+			wrap:        func(rec *httptest.ResponseRecorder) http.ResponseWriter { return nonFlushingResponseWriter{rec} },
+			wantErr:     ErrStreamSSEFlushNotSupported,
+			wantHeader:  http.Header{},
+			wantFlushed: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+
+			_, err := NewStreamSSEWriter(tt.wrap(rec))
+
+			assert.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, tt.wantHeader, rec.Header())
+			assert.Equal(t, tt.wantFlushed, rec.Flushed)
+		})
+	}
+}
+
+func TestStreamSSEWriter_Write(t *testing.T) {
+	renderErr := errors.New("render failed")
+	tests := []struct {
+		name     string
+		contents []StreamContent
+		wantErr  error
+		wantBody string
+	}{
+		{
+			name:     "single content becomes one message event",
+			contents: []StreamContent{StreamRemove("source")},
+			wantBody: "event: message\ndata: <turbo-stream action=\"remove\" target=\"source\"><template></template></turbo-stream>\n\n",
+		},
+		{
+			name: "multiple contents are concatenated into one event",
+			contents: []StreamContent{
+				encodedStreamContent("<a>"),
+				encodedStreamContent("<b>"),
+			},
+			wantBody: "event: message\ndata: <a><b>\n\n",
+		},
+		{
+			name:     "bare CR does not inject a new SSE event",
+			contents: []StreamContent{encodedStreamContent("foo\rdata: injected\r\r")},
+			wantBody: "event: message\ndata: foo\ndata: data: injected\ndata: \ndata: \n\n",
+		},
+		{
+			name: "render error writes nothing",
+			contents: []StreamContent{
+				encodedStreamContent("<a>"),
+				stubContent{err: renderErr},
+			},
+			wantErr:  renderErr,
+			wantBody: "",
+		},
+		{
+			name:     "no contents writes nothing",
+			contents: nil,
+			wantBody: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			sse, err := NewStreamSSEWriter(rec)
+			require.NoError(t, err)
+
+			err = sse.Write(t.Context(), tt.contents...)
+
+			assert.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, tt.wantBody, rec.Body.String())
+		})
+	}
+}
+
+func TestStreamSSEWriter_Heartbeat(t *testing.T) {
+	rec := httptest.NewRecorder()
+	sse, err := NewStreamSSEWriter(rec)
+	require.NoError(t, err)
+
+	require.NoError(t, sse.Heartbeat())
+
+	assert.Equal(t, ":\n\n", rec.Body.String())
+}
+
+func TestStreamSSEBroadcastHandler(t *testing.T) {
 	tests := []struct {
 		name     string
 		stream   string
@@ -120,7 +291,7 @@ func TestStreamSSEHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := NewStreamBroker()
-			server := httptest.NewServer(StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour)))
+			server := httptest.NewServer(StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(1*time.Hour)))
 			defer server.Close()
 
 			token := auth.SignToken(tt.stream, testSid, defaultStreamTokenTTL)
@@ -158,11 +329,11 @@ func TestStreamSSEHandler(t *testing.T) {
 	}
 }
 
-// TestStreamSSEHandler_Authorize covers the authorize step: malformed,
+// TestStreamSSEBroadcastHandler_Authorize covers the authorize step: malformed,
 // missing, cookie-less, or sid-mismatched requests fail with 401; a
 // valid cookie whose sid matches the sid baked into the token is
 // accepted with 200 on both HTTP and HTTPS (r.TLS != nil branch).
-func TestStreamSSEHandler_Authorize(t *testing.T) {
+func TestStreamSSEBroadcastHandler_Authorize(t *testing.T) {
 	validSigned := auth.SignToken("posts:42", testSid, defaultStreamTokenTTL)
 
 	tests := []struct {
@@ -340,7 +511,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := NewStreamBroker()
-			handler := StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour))
+			handler := StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(1*time.Hour))
 
 			var server *httptest.Server
 			if tt.useHTTPS {
@@ -359,11 +530,11 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 	}
 }
 
-// TestStreamSSEHandler_Heartbeat drives the heartbeat.C branch of the
+// TestStreamSSEBroadcastHandler_Heartbeat drives the heartbeat.C branch of the
 // handler's select loop deterministically. Inside a testing/synctest
 // bubble the request context's fake-time deadline fires exactly `ticks`
 // heartbeats before the handler exits via r.Context().Done().
-func TestStreamSSEHandler_Heartbeat(t *testing.T) {
+func TestStreamSSEBroadcastHandler_Heartbeat(t *testing.T) {
 	tests := []struct {
 		name     string
 		interval time.Duration
@@ -397,7 +568,7 @@ func TestStreamSSEHandler_Heartbeat(t *testing.T) {
 				req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				w := httptest.NewRecorder()
 
-				StreamSSEHandler(sb, WithHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
+				StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
 
 				assert.Equal(t, tt.ticks, strings.Count(w.Body.String(), ":\n\n"))
 			})

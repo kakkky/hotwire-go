@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStreamsMiddleware(t *testing.T) {
+func TestStreamSSEBroadcastMiddleware(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           func() *http.Request
@@ -79,7 +79,7 @@ func TestStreamsMiddleware(t *testing.T) {
 			})
 			w := httptest.NewRecorder()
 
-			StreamsMiddleware(next).ServeHTTP(w, tt.req())
+			StreamSSEBroadcastMiddleware(next).ServeHTTP(w, tt.req())
 
 			if tt.wantSid == "" {
 				assert.NotEmpty(t, gotSid, "sid must be threaded into ctx")

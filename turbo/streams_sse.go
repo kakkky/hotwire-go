@@ -4,32 +4,40 @@ import (
 	"bytes"
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
-// StreamsSSEPath is the URL path served by StreamSSEHandler and
-// embedded into the src attribute produced by StreamSourceSSE.
-// Applications that expose the SSE endpoint at a different path
-// should reassign this variable at start-up, before any handler is
-// mounted or any StreamSourceSSE renders:
+// StreamSSEBroadcastPath is the URL path served by
+// StreamSSEBroadcastHandler and embedded into the src attribute
+// produced by StreamSSEBroadcastSource. Applications that expose the
+// SSE endpoint at a different path should reassign this variable at
+// start-up, before any handler is mounted or any
+// StreamSSEBroadcastSource renders:
 //
-//	turbo.StreamsSSEPath = "/..."
-//	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-var StreamsSSEPath = "/turbo_streams_sse"
+//	turbo.StreamSSEBroadcastPath = "/..."
+//	mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+var StreamSSEBroadcastPath = "/turbo_streams_sse"
 
-// StreamSourceSSE renders a <turbo-stream-source> that subscribes
+// ErrStreamSSEFlushNotSupported is returned by NewStreamSSEWriter
+// when the http.ResponseWriter cannot flush, so events would sit in a
+// buffer instead of reaching the client as they are written.
+var ErrStreamSSEFlushNotSupported = errors.New("turbo: stream SSE requires a flushable response writer")
+
+// StreamSSEBroadcastSource renders a <turbo-stream-source> that subscribes
 // the current page to the named broker stream over SSE. The signed
 // token in its src binds the stream to the caller's session sid, so
 // a leaked token cannot be replayed from another browser.
 //
-// ctx must carry a sid installed by StreamsMiddleware; otherwise
+// ctx must carry a sid installed by StreamSSEBroadcastMiddleware; otherwise
 // this function panics.
 //
 // Place the element inside <body>: <turbo-stream-source> disconnects
@@ -38,21 +46,21 @@ var StreamsSSEPath = "/turbo_streams_sse"
 //
 // Register via turbo.TemplateFuncMap and call from a template:
 //
-//	{{ turboStreamSourceSSE .Ctx "..." }}
+//	{{ turboStreamSSEBroadcastSource .Ctx "..." }}
 //
 // Or from an a-h/templ template (https://github.com/a-h/templ):
 //
-//	@turbo.StreamSourceSSE(ctx, "...")
-func StreamSourceSSE(ctx context.Context, stream string) Elm {
+//	@turbo.StreamSSEBroadcastSource(ctx, "...")
+func StreamSSEBroadcastSource(ctx context.Context, stream string) Elm {
 	sid, ok := ctx.Value(sidCtxKey{}).(string)
 	if !ok {
-		panic("turbo: StreamSourceSSE requires turbo.StreamsMiddleware in the request pipeline")
+		panic("turbo: StreamSSEBroadcastSource requires turbo.StreamSSEBroadcastMiddleware in the request pipeline")
 	}
 	token := auth.SignToken(stream, sid, defaultStreamTokenTTL)
 	q := url.Values{}
 	q.Set("token", token)
 	u := url.URL{
-		Path:     StreamsSSEPath,
+		Path:     StreamSSEBroadcastPath,
 		RawQuery: q.Encode(),
 	}
 	return Elm{
@@ -64,24 +72,140 @@ func StreamSourceSSE(ctx context.Context, stream string) Elm {
 	}
 }
 
-// StreamSSEHandler returns the SSE endpoint that pairs with
-// StreamSourceSSE: it accepts the EventSource opened by a
+// StreamSSESource renders a <turbo-stream-source> whose src points at
+// an endpoint that streams with StreamSSEWriter.
+//
+// The id lets the endpoint end the stream with StreamRemove(id). Both
+// id and src are HTML-escaped before insertion.
+//
+// Register via turbo.TemplateFuncMap and call from a template:
+//
+//	{{ turboStreamSSESource "..." "..." }}
+//
+// Or from an a-h/templ template (https://github.com/a-h/templ):
+//
+//	@turbo.StreamSSESource("...", "...")
+func StreamSSESource(id, src string, extra ...Attrs) Elm {
+	attrs := Attrs{
+		{Key: "id", Value: id},
+		{Key: "src", Value: src},
+	}
+	for _, extraAttrs := range extra {
+		attrs = append(attrs, extraAttrs...)
+	}
+	return Elm{
+		Tag:   Tag("turbo-stream-source"),
+		Attrs: attrs,
+	}
+}
+
+// StreamSSEWriter writes Turbo Streams as Server-Sent Events onto the
+// single connection behind one http.ResponseWriter.
+//
+// EventSource reconnects whenever the server closes the connection,
+// so finish the stream by writing a StreamRemove that removes the
+// <turbo-stream-source> element.
+//
+// Write and Heartbeat are safe to call from multiple goroutines.
+type StreamSSEWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+	rc *http.ResponseController
+}
+
+// NewStreamSSEWriter sets the text/event-stream response headers on w
+// and flushes them, committing a 200 response. It returns
+// ErrStreamSSEFlushNotSupported without touching w when w cannot
+// flush.
+//
+// Flushing goes through http.ResponseController, so when w wraps
+// another http.ResponseWriter, w can be flushed as long as it exposes
+// the wrapped writer from an Unwrap() http.ResponseWriter method.
+//
+//	sse, err := turbo.NewStreamSSEWriter(w)
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		return
+//	}
+//	_ = sse.Write(r.Context(), turbo.StreamUpdate("answer"))
+func NewStreamSSEWriter(w http.ResponseWriter) (*StreamSSEWriter, error) {
+	headers := map[string]string{
+		"Content-Type":      "text/event-stream",
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"X-Accel-Buffering": "no",
+	}
+	h := w.Header()
+	for k, v := range headers {
+		h.Set(k, v)
+	}
+	rc := http.NewResponseController(w)
+	if err := rc.Flush(); err != nil {
+		if !errors.Is(err, http.ErrNotSupported) {
+			return nil, err
+		}
+		// ResponseController reports a missing Flush only by trying it,
+		// so the headers set above are taken back to leave w untouched.
+		for k := range headers {
+			h.Del(k)
+		}
+		return nil, ErrStreamSSEFlushNotSupported
+	}
+	return &StreamSSEWriter{w: w, rc: rc}, nil
+}
+
+// Write renders contents in order and sends their concatenation as a
+// single SSE event. If any Render returns an error, Write returns it
+// without writing anything.
+func (s *StreamSSEWriter) Write(ctx context.Context, contents ...StreamContent) error {
+	if len(contents) == 0 {
+		return nil
+	}
+	var buf bytes.Buffer
+	for _, c := range contents {
+		if err := c.Render(ctx, &buf); err != nil {
+			return err
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := writeEventStreamFormat(s.w, "message", buf.Bytes()); err != nil {
+		return err
+	}
+	return s.rc.Flush()
+}
+
+// Heartbeat writes an SSE comment frame (":\n\n") so that reverse
+// proxies do not close an idle connection.
+func (s *StreamSSEWriter) Heartbeat() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := io.WriteString(s.w, ":\n\n"); err != nil {
+		return err
+	}
+	return s.rc.Flush()
+}
+
+// StreamSSEBroadcastHandler returns the SSE endpoint that pairs with
+// StreamSSEBroadcastSource: it accepts the EventSource opened by a
 // <turbo-stream-source>, verifies the request, and forwards every
 // payload Broadcast publishes to the requested stream on sb through
 // to the client. Unauthorized requests return 401 without opening a
 // subscription.
 //
-// Wire it under StreamsSSEPath. StreamsMiddleware wraps only the
-// page routes; this handler reads the session cookie directly:
+// Wire it under StreamSSEBroadcastPath. StreamSSEBroadcastMiddleware
+// wraps only the page routes; this handler reads the session cookie
+// directly:
 //
 //	sb := turbo.NewStreamBroker()
-//	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-//	mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
+//	mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+//	mux.Handle("/", turbo.StreamSSEBroadcastMiddleware(pageHandler))
 //
-// Heartbeat interval is configurable via WithHeartbeatInterval
-// (default 15s).
-func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
-	c := &streamConfigs{
+// Heartbeat interval is configurable via
+// WithStreamSSEBroadcastHeartbeatInterval (default 15s).
+func StreamSSEBroadcastHandler(sb StreamBroker, cfgs ...StreamSSEBroadcastConfig) http.Handler {
+	c := &streamSSEBroadcastConfigs{
 		heartbeatInterval: defaultHeartbeatInterval,
 	}
 	for _, cfg := range cfgs {
@@ -122,19 +246,12 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		}
 		defer func() { _ = subscription.Close() }()
 
-		h := w.Header()
-		h.Set("Content-Type", "text/event-stream")
-		h.Set("Cache-Control", "no-cache")
-		h.Set("Connection", "keep-alive")
-		h.Set("X-Accel-Buffering", "no")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			slog.Error("turbo: response writer does not support flushing")
+		sse, err := NewStreamSSEWriter(w)
+		if err != nil {
+			slog.Error("turbo: sse writer unavailable", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		flusher.Flush()
 
 		heartbeat := time.NewTicker(c.heartbeatInterval)
 		defer heartbeat.Stop()
@@ -142,15 +259,13 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		for {
 			select {
 			case payload := <-subscription.PayloadCh:
-				if err := writeEventStreamFormat(w, "message", payload, 3*time.Second); err != nil {
+				if err := sse.Write(r.Context(), encodedStreamContent(payload)); err != nil {
 					return
 				}
-				flusher.Flush()
 			case <-heartbeat.C:
-				if _, err := io.WriteString(w, ":\n\n"); err != nil {
+				if err := sse.Heartbeat(); err != nil {
 					return
 				}
-				flusher.Flush()
 			case <-r.Context().Done():
 				return
 			}
@@ -158,23 +273,26 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 	})
 }
 
+// encodedStreamContent is a Turbo Streams fragment that has already
+// been rendered, such as a payload received from a StreamBroker.
+type encodedStreamContent []byte
+
+func (c encodedStreamContent) Render(_ context.Context, w io.Writer) error {
+	_, err := w.Write(c)
+	return err
+}
+
 // writeEventStreamFormat writes one SSE event to w as an optional
-// "event:" line, an optional "retry:" line, one "data:" line per newline
-// segment of data, and a terminating blank line.
+// "event:" line, one "data:" line per newline segment of data, and a
+// terminating blank line.
 //
 // Per the HTML Living Standard the SSE parser terminates a field on any
 // of "\n", "\r", or "\r\n". A bare "\r" inside data would let subsequent
 // bytes be interpreted as new SSE fields, so both "\r\n" and bare "\r"
 // are normalized to "\n" before splitting to prevent event injection.
-func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.Duration) error {
+func writeEventStreamFormat(w io.Writer, event string, data []byte) error {
 	if event != "" {
 		if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
-			return err
-		}
-	}
-
-	if retry > 0 {
-		if _, err := fmt.Fprintf(w, "retry: %d\n", retry.Milliseconds()); err != nil {
 			return err
 		}
 	}
