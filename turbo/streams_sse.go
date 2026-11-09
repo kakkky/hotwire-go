@@ -126,7 +126,7 @@ func (s *StreamSSEWriter) Write(ctx context.Context, contents ...StreamContent) 
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := writeEventStreamFormat(s.w, "message", buf.Bytes(), 0); err != nil {
+	if err := writeEventStreamFormat(s.w, "message", buf.Bytes()); err != nil {
 		return err
 	}
 	s.flusher.Flush()
@@ -203,19 +203,12 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		}
 		defer func() { _ = subscription.Close() }()
 
-		h := w.Header()
-		h.Set("Content-Type", "text/event-stream")
-		h.Set("Cache-Control", "no-cache")
-		h.Set("Connection", "keep-alive")
-		h.Set("X-Accel-Buffering", "no")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			slog.Error("turbo: response writer does not support flushing")
+		sse, err := NewStreamSSEWriter(w)
+		if err != nil {
+			slog.Error("turbo: sse writer unavailable", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		flusher.Flush()
 
 		heartbeat := time.NewTicker(c.heartbeatInterval)
 		defer heartbeat.Stop()
@@ -223,15 +216,13 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 		for {
 			select {
 			case payload := <-subscription.PayloadCh:
-				if err := writeEventStreamFormat(w, "message", payload, 3*time.Second); err != nil {
+				if err := sse.Write(r.Context(), encodedStreamContent(payload)); err != nil {
 					return
 				}
-				flusher.Flush()
 			case <-heartbeat.C:
-				if _, err := io.WriteString(w, ":\n\n"); err != nil {
+				if err := sse.Heartbeat(); err != nil {
 					return
 				}
-				flusher.Flush()
 			case <-r.Context().Done():
 				return
 			}
@@ -249,22 +240,16 @@ func (c encodedStreamContent) Render(_ context.Context, w io.Writer) error {
 }
 
 // writeEventStreamFormat writes one SSE event to w as an optional
-// "event:" line, an optional "retry:" line, one "data:" line per newline
-// segment of data, and a terminating blank line.
+// "event:" line, one "data:" line per newline segment of data, and a
+// terminating blank line.
 //
 // Per the HTML Living Standard the SSE parser terminates a field on any
 // of "\n", "\r", or "\r\n". A bare "\r" inside data would let subsequent
 // bytes be interpreted as new SSE fields, so both "\r\n" and bare "\r"
 // are normalized to "\n" before splitting to prevent event injection.
-func writeEventStreamFormat(w io.Writer, event string, data []byte, retry time.Duration) error {
+func writeEventStreamFormat(w io.Writer, event string, data []byte) error {
 	if event != "" {
 		if _, err := fmt.Fprintf(w, "event: %s\n", event); err != nil {
-			return err
-		}
-	}
-
-	if retry > 0 {
-		if _, err := fmt.Fprintf(w, "retry: %d\n", retry.Milliseconds()); err != nil {
 			return err
 		}
 	}
