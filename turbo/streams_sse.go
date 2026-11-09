@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/kakkky/hotwire-go/internal/auth"
@@ -23,6 +25,11 @@ import (
 //	turbo.StreamsSSEPath = "/..."
 //	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
 var StreamsSSEPath = "/turbo_streams_sse"
+
+// ErrStreamSSEFlushNotSupported is returned by NewStreamSSEWriter
+// when the http.ResponseWriter cannot flush, so events would sit in a
+// buffer instead of reaching the client as they are written.
+var ErrStreamSSEFlushNotSupported = errors.New("turbo: stream SSE requires a flushable response writer")
 
 // StreamSourceSSE renders a <turbo-stream-source> that subscribes
 // the current page to the named broker stream over SSE. The signed
@@ -62,6 +69,80 @@ func StreamSourceSSE(ctx context.Context, stream string) Elm {
 			Value: u.String(),
 		}},
 	}
+}
+
+// StreamSSEWriter writes Turbo Streams as Server-Sent Events onto the
+// single connection behind one http.ResponseWriter.
+//
+// EventSource reconnects whenever the server closes the connection,
+// so finish the stream by writing a StreamRemove that removes the
+// <turbo-stream-source> element.
+//
+// Write and Heartbeat are safe to call from multiple goroutines.
+type StreamSSEWriter struct {
+	mu      sync.Mutex
+	w       io.Writer
+	flusher http.Flusher
+}
+
+// NewStreamSSEWriter sets the text/event-stream response headers on w
+// and flushes them, committing a 200 response. It returns
+// ErrStreamSSEFlushNotSupported without touching w when w cannot
+// flush.
+//
+//	sse, err := turbo.NewStreamSSEWriter(w)
+//	if err != nil {
+//		w.WriteHeader(http.StatusInternalServerError)
+//		return
+//	}
+//	_ = sse.Write(r.Context(), turbo.StreamUpdate("answer"))
+func NewStreamSSEWriter(w http.ResponseWriter) (*StreamSSEWriter, error) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		return nil, ErrStreamSSEFlushNotSupported
+	}
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Connection", "keep-alive")
+	h.Set("X-Accel-Buffering", "no")
+	flusher.Flush()
+	return &StreamSSEWriter{w: w, flusher: flusher}, nil
+}
+
+// Write renders contents in order and sends their concatenation as a
+// single SSE event. If any Render returns an error, Write returns it
+// without writing anything.
+func (s *StreamSSEWriter) Write(ctx context.Context, contents ...StreamContent) error {
+	if len(contents) == 0 {
+		return nil
+	}
+	var buf bytes.Buffer
+	for _, c := range contents {
+		if err := c.Render(ctx, &buf); err != nil {
+			return err
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := writeEventStreamFormat(s.w, "message", buf.Bytes(), 0); err != nil {
+		return err
+	}
+	s.flusher.Flush()
+	return nil
+}
+
+// Heartbeat writes an SSE comment frame (":\n\n") so that reverse
+// proxies do not close an idle connection.
+func (s *StreamSSEWriter) Heartbeat() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := io.WriteString(s.w, ":\n\n"); err != nil {
+		return err
+	}
+	s.flusher.Flush()
+	return nil
 }
 
 // StreamSSEHandler returns the SSE endpoint that pairs with
@@ -156,6 +237,15 @@ func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
 			}
 		}
 	})
+}
+
+// encodedStreamContent is a Turbo Streams fragment that has already
+// been rendered, such as a payload received from a StreamBroker.
+type encodedStreamContent []byte
+
+func (c encodedStreamContent) Render(_ context.Context, w io.Writer) error {
+	_, err := w.Write(c)
+	return err
 }
 
 // writeEventStreamFormat writes one SSE event to w as an optional

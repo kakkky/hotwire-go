@@ -77,6 +77,8 @@ import (
 - `StreamsMiddleware` — per-browser session cookie whose id is baked
   into each token, so a token leaked to another browser cannot be replayed
 - `Broadcast` — render multiple `StreamContent` values into a single message
+- `StreamSSEWriter` — stream Turbo Streams onto the current response as SSE,
+  without a broker or token (authorization is left to the caller)
 
 ### Stimulus
 

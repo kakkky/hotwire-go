@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -69,6 +70,118 @@ func TestStreamSourceSSE(t *testing.T) {
 			assert.Equal(t, testSid, sid)
 		})
 	}
+}
+
+// nonFlushingResponseWriter hides the http.Flusher implementation of
+// the embedded recorder.
+type nonFlushingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func TestNewStreamSSEWriter(t *testing.T) {
+	tests := []struct {
+		name       string
+		flushable  bool
+		wantErr    error
+		wantHeader http.Header
+	}{
+		{
+			name:      "flushable writer gets event-stream headers",
+			flushable: true,
+			wantHeader: http.Header{
+				"Content-Type":      {"text/event-stream"},
+				"Cache-Control":     {"no-cache"},
+				"Connection":        {"keep-alive"},
+				"X-Accel-Buffering": {"no"},
+			},
+		},
+		{
+			name:       "non-flushable writer is rejected untouched",
+			flushable:  false,
+			wantErr:    ErrStreamSSEFlushNotSupported,
+			wantHeader: http.Header{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			var w http.ResponseWriter = rec
+			if !tt.flushable {
+				w = nonFlushingResponseWriter{rec}
+			}
+
+			_, err := NewStreamSSEWriter(w)
+
+			assert.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, tt.wantHeader, rec.Header())
+			assert.Equal(t, tt.flushable, rec.Flushed)
+		})
+	}
+}
+
+func TestStreamSSEWriter_Write(t *testing.T) {
+	renderErr := errors.New("render failed")
+	tests := []struct {
+		name     string
+		contents []StreamContent
+		wantErr  error
+		wantBody string
+	}{
+		{
+			name:     "single content becomes one message event",
+			contents: []StreamContent{StreamRemove("source")},
+			wantBody: "event: message\ndata: <turbo-stream action=\"remove\" target=\"source\"><template></template></turbo-stream>\n\n",
+		},
+		{
+			name: "multiple contents are concatenated into one event",
+			contents: []StreamContent{
+				encodedStreamContent("<a>"),
+				encodedStreamContent("<b>"),
+			},
+			wantBody: "event: message\ndata: <a><b>\n\n",
+		},
+		{
+			name:     "bare CR does not inject a new SSE event",
+			contents: []StreamContent{encodedStreamContent("foo\rdata: injected\r\r")},
+			wantBody: "event: message\ndata: foo\ndata: data: injected\ndata: \ndata: \n\n",
+		},
+		{
+			name: "render error writes nothing",
+			contents: []StreamContent{
+				encodedStreamContent("<a>"),
+				stubContent{err: renderErr},
+			},
+			wantErr:  renderErr,
+			wantBody: "",
+		},
+		{
+			name:     "no contents writes nothing",
+			contents: nil,
+			wantBody: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			sse, err := NewStreamSSEWriter(rec)
+			require.NoError(t, err)
+
+			err = sse.Write(t.Context(), tt.contents...)
+
+			assert.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, tt.wantBody, rec.Body.String())
+		})
+	}
+}
+
+func TestStreamSSEWriter_Heartbeat(t *testing.T) {
+	rec := httptest.NewRecorder()
+	sse, err := NewStreamSSEWriter(rec)
+	require.NoError(t, err)
+
+	require.NoError(t, sse.Heartbeat())
+
+	assert.Equal(t, ":\n\n", rec.Body.String())
 }
 
 func TestStreamSSEHandler(t *testing.T) {
