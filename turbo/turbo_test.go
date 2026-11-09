@@ -74,7 +74,7 @@ func TestTemplateFuncMap(t *testing.T) {
 				"turboAttrTargets",
 				"turboAttrRequestID",
 				"turboAttrMethodMorph",
-				"turboStreamSourceSSE",
+				"turboStreamSSEBroadcastSource",
 			},
 		},
 	}

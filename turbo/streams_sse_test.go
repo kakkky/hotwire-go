@@ -18,17 +18,17 @@ import (
 )
 
 // testSid is a canonical session identifier used across the tests to
-// stand in for the value StreamsMiddleware would install on a real
+// stand in for the value StreamSSEBroadcastMiddleware would install on a real
 // request.
 const testSid = "test-session-id"
 
-// signedTestSid is testSid packaged as StreamsMiddleware would put it
-// on the wire: an auth.SignSid value that StreamSSEHandler decodes
+// signedTestSid is testSid packaged as StreamSSEBroadcastMiddleware would put it
+// on the wire: an auth.SignSid value that StreamSSEBroadcastHandler decodes
 // with auth.VerifySid before comparing to the sid inside the token.
 // Using a fresh long TTL keeps it valid across every test run.
 var signedTestSid = auth.SignSid(testSid, defaultStreamTokenTTL)
 
-func TestStreamSourceSSE(t *testing.T) {
+func TestStreamSSEBroadcastSource(t *testing.T) {
 	tests := []struct {
 		name   string
 		stream string
@@ -49,7 +49,7 @@ func TestStreamSourceSSE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.WithValue(t.Context(), sidCtxKey{}, testSid)
-			elm := StreamSourceSSE(ctx, tt.stream)
+			elm := StreamSSEBroadcastSource(ctx, tt.stream)
 
 			assert.Equal(t, Tag("turbo-stream-source"), elm.Tag)
 			require.Len(t, elm.Attrs, 1)
@@ -60,7 +60,7 @@ func TestStreamSourceSSE(t *testing.T) {
 			src, ok := attr.Value.(string)
 			require.True(t, ok, "src attribute value must be a string")
 
-			prefix := StreamsSSEPath + "?token="
+			prefix := StreamSSEBroadcastPath + "?token="
 			require.Truef(t, strings.HasPrefix(src, prefix), "src %q must start with %q", src, prefix)
 
 			token := strings.TrimPrefix(src, prefix)
@@ -200,7 +200,7 @@ func TestStreamSSEWriter_Heartbeat(t *testing.T) {
 	assert.Equal(t, ":\n\n", rec.Body.String())
 }
 
-func TestStreamSSEHandler(t *testing.T) {
+func TestStreamSSEBroadcastHandler(t *testing.T) {
 	tests := []struct {
 		name     string
 		stream   string
@@ -249,7 +249,7 @@ func TestStreamSSEHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := NewStreamBroker()
-			server := httptest.NewServer(StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour)))
+			server := httptest.NewServer(StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(1*time.Hour)))
 			defer server.Close()
 
 			token := auth.SignToken(tt.stream, testSid, defaultStreamTokenTTL)
@@ -287,11 +287,11 @@ func TestStreamSSEHandler(t *testing.T) {
 	}
 }
 
-// TestStreamSSEHandler_Authorize covers the authorize step: malformed,
+// TestStreamSSEBroadcastHandler_Authorize covers the authorize step: malformed,
 // missing, cookie-less, or sid-mismatched requests fail with 401; a
 // valid cookie whose sid matches the sid baked into the token is
 // accepted with 200 on both HTTP and HTTPS (r.TLS != nil branch).
-func TestStreamSSEHandler_Authorize(t *testing.T) {
+func TestStreamSSEBroadcastHandler_Authorize(t *testing.T) {
 	validSigned := auth.SignToken("posts:42", testSid, defaultStreamTokenTTL)
 
 	tests := []struct {
@@ -469,7 +469,7 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sb := NewStreamBroker()
-			handler := StreamSSEHandler(sb, WithHeartbeatInterval(1*time.Hour))
+			handler := StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(1*time.Hour))
 
 			var server *httptest.Server
 			if tt.useHTTPS {
@@ -488,11 +488,11 @@ func TestStreamSSEHandler_Authorize(t *testing.T) {
 	}
 }
 
-// TestStreamSSEHandler_Heartbeat drives the heartbeat.C branch of the
+// TestStreamSSEBroadcastHandler_Heartbeat drives the heartbeat.C branch of the
 // handler's select loop deterministically. Inside a testing/synctest
 // bubble the request context's fake-time deadline fires exactly `ticks`
 // heartbeats before the handler exits via r.Context().Done().
-func TestStreamSSEHandler_Heartbeat(t *testing.T) {
+func TestStreamSSEBroadcastHandler_Heartbeat(t *testing.T) {
 	tests := []struct {
 		name     string
 		interval time.Duration
@@ -526,7 +526,7 @@ func TestStreamSSEHandler_Heartbeat(t *testing.T) {
 				req.AddCookie(&http.Cookie{Name: streamsSessionCookieName, Value: signedTestSid})
 				w := httptest.NewRecorder()
 
-				StreamSSEHandler(sb, WithHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
+				StreamSSEBroadcastHandler(sb, WithStreamSSEBroadcastHeartbeatInterval(tt.interval)).ServeHTTP(w, req)
 
 				assert.Equal(t, tt.ticks, strings.Count(w.Body.String(), ":\n\n"))
 			})

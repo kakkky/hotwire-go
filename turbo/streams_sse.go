@@ -16,27 +16,28 @@ import (
 	"github.com/kakkky/hotwire-go/internal/auth"
 )
 
-// StreamsSSEPath is the URL path served by StreamSSEHandler and
-// embedded into the src attribute produced by StreamSourceSSE.
-// Applications that expose the SSE endpoint at a different path
-// should reassign this variable at start-up, before any handler is
-// mounted or any StreamSourceSSE renders:
+// StreamSSEBroadcastPath is the URL path served by
+// StreamSSEBroadcastHandler and embedded into the src attribute
+// produced by StreamSSEBroadcastSource. Applications that expose the
+// SSE endpoint at a different path should reassign this variable at
+// start-up, before any handler is mounted or any
+// StreamSSEBroadcastSource renders:
 //
-//	turbo.StreamsSSEPath = "/..."
-//	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-var StreamsSSEPath = "/turbo_streams_sse"
+//	turbo.StreamSSEBroadcastPath = "/..."
+//	mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+var StreamSSEBroadcastPath = "/turbo_streams_sse"
 
 // ErrStreamSSEFlushNotSupported is returned by NewStreamSSEWriter
 // when the http.ResponseWriter cannot flush, so events would sit in a
 // buffer instead of reaching the client as they are written.
 var ErrStreamSSEFlushNotSupported = errors.New("turbo: stream SSE requires a flushable response writer")
 
-// StreamSourceSSE renders a <turbo-stream-source> that subscribes
+// StreamSSEBroadcastSource renders a <turbo-stream-source> that subscribes
 // the current page to the named broker stream over SSE. The signed
 // token in its src binds the stream to the caller's session sid, so
 // a leaked token cannot be replayed from another browser.
 //
-// ctx must carry a sid installed by StreamsMiddleware; otherwise
+// ctx must carry a sid installed by StreamSSEBroadcastMiddleware; otherwise
 // this function panics.
 //
 // Place the element inside <body>: <turbo-stream-source> disconnects
@@ -45,21 +46,21 @@ var ErrStreamSSEFlushNotSupported = errors.New("turbo: stream SSE requires a flu
 //
 // Register via turbo.TemplateFuncMap and call from a template:
 //
-//	{{ turboStreamSourceSSE .Ctx "..." }}
+//	{{ turboStreamSSEBroadcastSource .Ctx "..." }}
 //
 // Or from an a-h/templ template (https://github.com/a-h/templ):
 //
-//	@turbo.StreamSourceSSE(ctx, "...")
-func StreamSourceSSE(ctx context.Context, stream string) Elm {
+//	@turbo.StreamSSEBroadcastSource(ctx, "...")
+func StreamSSEBroadcastSource(ctx context.Context, stream string) Elm {
 	sid, ok := ctx.Value(sidCtxKey{}).(string)
 	if !ok {
-		panic("turbo: StreamSourceSSE requires turbo.StreamsMiddleware in the request pipeline")
+		panic("turbo: StreamSSEBroadcastSource requires turbo.StreamSSEBroadcastMiddleware in the request pipeline")
 	}
 	token := auth.SignToken(stream, sid, defaultStreamTokenTTL)
 	q := url.Values{}
 	q.Set("token", token)
 	u := url.URL{
-		Path:     StreamsSSEPath,
+		Path:     StreamSSEBroadcastPath,
 		RawQuery: q.Encode(),
 	}
 	return Elm{
@@ -159,24 +160,25 @@ func (s *StreamSSEWriter) Heartbeat() error {
 	return s.rc.Flush()
 }
 
-// StreamSSEHandler returns the SSE endpoint that pairs with
-// StreamSourceSSE: it accepts the EventSource opened by a
+// StreamSSEBroadcastHandler returns the SSE endpoint that pairs with
+// StreamSSEBroadcastSource: it accepts the EventSource opened by a
 // <turbo-stream-source>, verifies the request, and forwards every
 // payload Broadcast publishes to the requested stream on sb through
 // to the client. Unauthorized requests return 401 without opening a
 // subscription.
 //
-// Wire it under StreamsSSEPath. StreamsMiddleware wraps only the
-// page routes; this handler reads the session cookie directly:
+// Wire it under StreamSSEBroadcastPath. StreamSSEBroadcastMiddleware
+// wraps only the page routes; this handler reads the session cookie
+// directly:
 //
 //	sb := turbo.NewStreamBroker()
-//	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-//	mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
+//	mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+//	mux.Handle("/", turbo.StreamSSEBroadcastMiddleware(pageHandler))
 //
-// Heartbeat interval is configurable via WithHeartbeatInterval
-// (default 15s).
-func StreamSSEHandler(sb StreamBroker, cfgs ...StreamConfig) http.Handler {
-	c := &streamConfigs{
+// Heartbeat interval is configurable via
+// WithStreamSSEBroadcastHeartbeatInterval (default 15s).
+func StreamSSEBroadcastHandler(sb StreamBroker, cfgs ...StreamSSEBroadcastConfig) http.Handler {
+	c := &streamSSEBroadcastConfigs{
 		heartbeatInterval: defaultHeartbeatInterval,
 	}
 	for _, cfg := range cfgs {

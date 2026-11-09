@@ -23,19 +23,20 @@ const sidByteLen = 32
 // packages cannot collide on the key or read the value out-of-band.
 type sidCtxKey struct{}
 
-// StreamsMiddleware issues a per-browser Turbo Streams session cookie
-// and threads its value (sid) into r.Context. StreamSourceSSE bakes
-// that sid into every token it mints, and StreamSSEHandler compares
-// it against the cookie the browser presents when subscribing, so a
-// token leaked to another browser cannot be replayed.
+// StreamSSEBroadcastMiddleware issues a per-browser Turbo Streams
+// session cookie and threads its value (sid) into r.Context.
+// StreamSSEBroadcastSource bakes that sid into every token it mints,
+// and StreamSSEBroadcastHandler compares it against the cookie the
+// browser presents when subscribing, so a token leaked to another
+// browser cannot be replayed.
 //
-// Wrap the routes that render pages containing StreamSourceSSE. The
+// Wrap the routes that render pages containing StreamSSEBroadcastSource. The
 // SSE endpoint reads the cookie directly and does not need this
 // middleware:
 //
-//	mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-//	mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
-func StreamsMiddleware(next http.Handler) http.Handler {
+//	mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+//	mux.Handle("/", turbo.StreamSSEBroadcastMiddleware(pageHandler))
+func StreamSSEBroadcastMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var sid string
 		if cookie, err := r.Cookie(streamsSessionCookieName); err == nil {

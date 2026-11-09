@@ -70,11 +70,11 @@ import (
 
 - `StreamBroker` interface with an in-process default and a drop-in Redis
   PUB/SUB backend (`WithRedisStreamBroker`) for horizontal scaling
-- `StreamSSEHandler` — ready-to-mount `http.Handler` with configurable
+- `StreamSSEBroadcastHandler` — ready-to-mount `http.Handler` with configurable
   heartbeat interval
-- `StreamSourceSSE` — signed `<turbo-stream-source>` tag helper
+- `StreamSSEBroadcastSource` — signed `<turbo-stream-source>` tag helper
 - HMAC-SHA256 signed, TTL-scoped subscription tokens
-- `StreamsMiddleware` — per-browser session cookie whose id is baked
+- `StreamSSEBroadcastMiddleware` — per-browser session cookie whose id is baked
   into each token, so a token leaked to another browser cannot be replayed
 - `Broadcast` — render multiple `StreamContent` values into a single message
 - `StreamSSEWriter` — stream Turbo Streams onto the current response as SSE,
@@ -110,7 +110,7 @@ import (
     {{ turboFrame "posts" }}
         <p>content</p>
     {{ turboFrameEnd }}
-    {{ turboStreamSourceSSE .Ctx "messages" }}
+    {{ turboStreamSSEBroadcastSource .Ctx "messages" }}
 </body>
 ```
 
@@ -125,19 +125,19 @@ a-h/templ:
     @turbo.Frame("posts") {
         <p>content</p>
     }
-    @turbo.StreamSourceSSE(ctx, "messages")
+    @turbo.StreamSSEBroadcastSource(ctx, "messages")
 </body>
 ```
 
 Wiring an SSE broadcaster — wrap the routes that render pages
-containing `StreamSourceSSE` in `StreamsMiddleware` so the sid the
+containing `StreamSSEBroadcastSource` in `StreamSSEBroadcastMiddleware` so the sid the
 helper bakes into each token is available in `ctx`. The SSE endpoint
 reads the cookie directly and does not need the middleware:
 
 ```go
 sb := turbo.NewStreamBroker() // or turbo.NewStreamBroker(turbo.WithRedisStreamBroker(rdb))
-mux.Handle(turbo.StreamsSSEPath, turbo.StreamSSEHandler(sb))
-mux.Handle("/", turbo.StreamsMiddleware(pageHandler))
+mux.Handle(turbo.StreamSSEBroadcastPath, turbo.StreamSSEBroadcastHandler(sb))
+mux.Handle("/", turbo.StreamSSEBroadcastMiddleware(pageHandler))
 
 // later, from any handler / worker:
 _ = turbo.Broadcast(ctx, sb, "messages", streamContent)
