@@ -97,7 +97,8 @@ func TemplateFuncMap() template.FuncMap {
 		"turboAttrRequestID":                func(id string) template.HTMLAttr { return AttrRequestID(id).HTMLAttr() },
 		"turboAttrMethodMorph":              func() template.HTMLAttr { return AttrMethodMorph().HTMLAttr() },
 		"turboStreamSSEBroadcastSource": func(ctx context.Context, stream string) template.HTML {
-			return StreamSSEBroadcastSource(ctx, stream).HTMLTag()
+			e := StreamSSEBroadcastSource(ctx, stream)
+			return e.HTMLTag() + e.Close().HTMLTag()
 		},
 		"turboStreamSSESource": func(id, src string) template.HTML {
 			e := StreamSSESource(id, src)
