@@ -72,6 +72,33 @@ func StreamSSEBroadcastSource(ctx context.Context, stream string) Elm {
 	}
 }
 
+// StreamSSESource renders a <turbo-stream-source> whose src points at
+// an endpoint that streams with StreamSSEWriter.
+//
+// The id lets the endpoint end the stream with StreamRemove(id). Both
+// id and src are HTML-escaped before insertion.
+//
+// Register via turbo.TemplateFuncMap and call from a template:
+//
+//	{{ turboStreamSSESource "..." "..." }}
+//
+// Or from an a-h/templ template (https://github.com/a-h/templ):
+//
+//	@turbo.StreamSSESource("...", "...")
+func StreamSSESource(id, src string, extra ...Attrs) Elm {
+	attrs := Attrs{
+		{Key: "id", Value: id},
+		{Key: "src", Value: src},
+	}
+	for _, extraAttrs := range extra {
+		attrs = append(attrs, extraAttrs...)
+	}
+	return Elm{
+		Tag:   Tag("turbo-stream-source"),
+		Attrs: attrs,
+	}
+}
+
 // StreamSSEWriter writes Turbo Streams as Server-Sent Events onto the
 // single connection behind one http.ResponseWriter.
 //

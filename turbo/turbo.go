@@ -99,6 +99,10 @@ func TemplateFuncMap() template.FuncMap {
 		"turboStreamSSEBroadcastSource": func(ctx context.Context, stream string) template.HTML {
 			return StreamSSEBroadcastSource(ctx, stream).HTMLTag()
 		},
+		"turboStreamSSESource": func(id, src string) template.HTML {
+			e := StreamSSESource(id, src)
+			return e.HTMLTag() + e.Close().HTMLTag()
+		},
 	}
 }
 

@@ -79,6 +79,8 @@ import (
 - `Broadcast` — render multiple `StreamContent` values into a single message
 - `StreamSSEWriter` — stream Turbo Streams onto the current response as SSE,
   without a broker or token (authorization is left to the caller)
+- `StreamSSESource` — unsigned `<turbo-stream-source>` tag helper pointing at
+  an endpoint that streams with `StreamSSEWriter`
 
 ### Stimulus
 

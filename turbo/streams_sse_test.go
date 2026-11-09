@@ -72,6 +72,48 @@ func TestStreamSSEBroadcastSource(t *testing.T) {
 	}
 }
 
+func TestStreamSSESource(t *testing.T) {
+	tests := []struct {
+		name  string
+		id    string
+		src   string
+		extra []Attrs
+		want  Elm
+	}{
+		{
+			name: "id and src",
+			id:   "answer-source",
+			src:  "/answers/42/stream",
+			want: Elm{
+				Tag: Tag("turbo-stream-source"),
+				Attrs: Attrs{
+					{Key: "id", Value: "answer-source"},
+					{Key: "src", Value: "/answers/42/stream"},
+				},
+			},
+		},
+		{
+			name:  "id and src with extra attrs",
+			id:    "answer-source",
+			src:   "/answers/42/stream",
+			extra: []Attrs{{{Key: "data-answer", Value: "42"}}},
+			want: Elm{
+				Tag: Tag("turbo-stream-source"),
+				Attrs: Attrs{
+					{Key: "id", Value: "answer-source"},
+					{Key: "src", Value: "/answers/42/stream"},
+					{Key: "data-answer", Value: "42"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, StreamSSESource(tt.id, tt.src, tt.extra...))
+		})
+	}
+}
+
 // nonFlushingResponseWriter hides the http.Flusher implementation of
 // the embedded recorder.
 type nonFlushingResponseWriter struct {
